@@ -14,11 +14,15 @@ describe('QuantityStepper', () => {
 
   it('− is disabled at the minimum', { tags: '@component' }, () => {
     cy.mount(<QuantityStepper value={1} max={5} onChange={cy.spy()} />);
-    cy.findByRole('button', { name: 'Decrease quantity' }).should('be.disabled');
+    cy.findByRole('button', { name: 'Decrease quantity' }).then(($btn) =>
+      expect($btn, 'Decrease quantity at minimum').to.be.disabled,
+    );
   });
 
   it('+ is disabled at the stock limit', { tags: '@component' }, () => {
     cy.mount(<QuantityStepper value={3} max={3} onChange={cy.spy()} />);
-    cy.findByRole('button', { name: 'Increase quantity' }).should('be.disabled');
+    cy.findByRole('button', { name: 'Increase quantity' }).then(($btn) =>
+      expect($btn, 'Increase quantity at stock limit').to.be.disabled,
+    );
   });
 });
