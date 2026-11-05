@@ -42,23 +42,23 @@ One entry per issue, ordered by severity (money and privacy first, then broken f
 | **Contradicts** | `docs/PRODUCT.md` line 27 — catalog can't be loaded → say so and offer **Try again**; never pretend there are no plants. |
 | **Suggested fix** | On `plants.isError`, render `ErrorBanner` with retry (refetch), not `EmptyState`. |
 
-### BUG-003: Zero price shows `$0` instead of `$0.00`
+### BUG-003: Prices omit trailing zeros (`$24.5`, `$22`, `$0`)
 
 | Field | Detail |
 | --- | --- |
 | **Severity** | Low — display (money formatting) |
 | **Where** | Component: `PriceTag` via `formatPrice` (`web/src/money.ts`) |
 | **Category** | Components |
-| **Impact** | Free or zero-priced items do not follow the shop’s two-decimal price format. |
-| **Expected** | `$0.00` (`docs/PRODUCT.md` line 31). |
-| **Actual** | Browse card shows `$0` for `price: 0` in the mocked catalog. |
-| **Evidence** | `npm run cy:ui` — `Browse /` / `shows a zero price as $0.00 on the card` fails. |
-| **Contradicts** | `docs/PRODUCT.md` line 31 — two decimals everywhere. |
-| **Suggested fix** | Format with fixed two fractional digits (e.g. `toFixed(2)`). |
+| **Impact** | Catalog and cart prices often show one decimal or no cents, so amounts look inconsistent and do not match the shop’s stated format. |
+| **Expected** | Two decimals everywhere, e.g. `$24.50`, `$12.50`, `$22.00`, `$0.00` (`docs/PRODUCT.md` line 31). |
+| **Actual** | `formatPrice` renders `$${Math.round(amount * 100) / 100}`, so `24.5` → `$24.5`, `22` → `$22`, `0` → `$0`, `12.5` → `$12.5`. |
+| **Evidence** | `npm run cy:component` — `PriceTag` / `PT-01`, `PT-02`, `PT-03`, `PT-05`, `PT-12` fail (screenshots under `web/cypress/screenshots/PriceTag.cy.tsx/`). Also `npm run cy:ui` — `Browse /` / `shows a zero price as $0.00 on the card` fails. |
+| **Contradicts** | `docs/PRODUCT.md` line 31 — “Every price is shown in dollars with two decimals, everywhere: `$12.50`, never `$12.5`.” |
+| **Suggested fix** | Format with fixed two fractional digits (e.g. `toFixed(2)`), as in the `formatPrice` JSDoc. |
 
 ## Suspicions — not yet tested
 
-- Browse shows `$22`, `$12.5`, `$27.5` (and plant size deltas `+$6`) instead of two decimals — PRODUCT: “Every price is shown in dollars with two decimals, everywhere: `$12.50`, never `$12.5`.”
+- Browse shows `$27.5` (and plant size deltas `+$6`) instead of two decimals — PRODUCT: “Every price is shown in dollars with two decimals, everywhere.” (Component evidence for `$12.5` / `$22` / `$0`: **BUG-003**.)
 - Expert plants (Fiddle Leaf Fig, Calathea Orbifolia, String of Pearls) render as “Moderate care” — PRODUCT: “Care level has three steps: 1 **Easy**, 2 **Moderate**, 3 **Expert**.”
 - Following “Likes the same light” from Fiddle Leaf Fig to Rubber Plant left the URL as `/plants/pl-rubber` but the heading still said Fiddle Leaf Fig — PRODUCT: “The plant page always shows the plant in the address bar, including after following a "Likes the same light" link.”
 - API `price-desc` sorts with the same `a.price - b.price` as `price-asc` — PRODUCT: “Price: high to low (most expensive first)”.
