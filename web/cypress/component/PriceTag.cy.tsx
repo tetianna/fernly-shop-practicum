@@ -61,7 +61,7 @@ describe('PriceTag', () => {
 
   it('PT-10: exposes a visually hidden context label for screen readers', { tags: '@component' }, () => {
     cy.mount(<PriceTag amount={16.94} label="Subtotal" />);
-    cy.findByText(/Subtotal:/, { hidden: true });
+    cy.get('.visually-hidden').should('contain.text', 'Subtotal:');
     cy.findByText('$16.94', { exact: true }).should('be.visible');
   });
 
