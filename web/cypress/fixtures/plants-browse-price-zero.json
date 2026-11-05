@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "pl-free-sample",
+      "name": "Promo Cutting",
+      "latinName": "Sample gratis",
+      "price": 0,
+      "light": "low",
+      "careLevel": 1,
+      "petSafe": true,
+      "stock": 5,
+      "rating": 3.5,
+      "imageUrl": "/plants/snake.svg"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "pageSize": 12
+}
