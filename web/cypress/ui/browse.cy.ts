@@ -4,7 +4,7 @@ describe('Browse /', () => {
   });
 
   it('shows two plant cards and a heading count from a positive catalog', { tags: '@ui' }, () => {
-    cy.intercept('GET', '/api/plants?*', { fixture: 'plants-browse-positive.json' }).as('plants');
+    cy.intercept('GET', '**/api/plants?*', { fixture: 'plants-browse-positive.json' }).as('plants');
     cy.visit('/');
     cy.wait('@plants');
 
@@ -13,7 +13,7 @@ describe('Browse /', () => {
   });
 
   it('shows the empty state when the catalog has no plants', { tags: '@ui' }, () => {
-    cy.intercept('GET', '/api/plants?*', { fixture: 'plants-browse-empty.json' }).as('plants');
+    cy.intercept('GET', '**/api/plants?*', { fixture: 'plants-browse-empty.json' }).as('plants');
     cy.visit('/');
     cy.wait('@plants');
 
@@ -25,7 +25,7 @@ describe('Browse /', () => {
     const longName =
       'Supercalifragilisticexpialidocious Monstera Deliciosa Windowsill Companion Extraordinaire';
 
-    cy.intercept('GET', '/api/plants?*', { fixture: 'plants-browse-long-name.json' }).as('plants');
+    cy.intercept('GET', '**/api/plants?*', { fixture: 'plants-browse-long-name.json' }).as('plants');
     cy.visit('/');
     cy.wait('@plants');
 
@@ -43,7 +43,7 @@ describe('Browse /', () => {
   });
 
   it('shows a zero price as $0.00 on the card', { tags: '@ui' }, () => {
-    cy.intercept('GET', '/api/plants?*', { fixture: 'plants-browse-price-zero.json' }).as('plants');
+    cy.intercept('GET', '**/api/plants?*', { fixture: 'plants-browse-price-zero.json' }).as('plants');
     cy.visit('/');
     cy.wait('@plants');
 
@@ -53,7 +53,7 @@ describe('Browse /', () => {
   });
 
   it('shows an error alert and Try again when the catalog request fails', { tags: '@ui' }, () => {
-    cy.intercept('GET', '/api/plants?*', {
+    cy.intercept('GET', '**/api/plants?*', {
       statusCode: 500,
       body: { detail: 'Internal server error' },
     }).as('plants');

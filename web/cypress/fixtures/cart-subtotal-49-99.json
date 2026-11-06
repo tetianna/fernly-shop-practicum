@@ -1,0 +1,19 @@
+{
+  "lines": [
+    {
+      "id": "ln-fixture-4999",
+      "plantId": "pl-near",
+      "name": "Almost Free Ship",
+      "size": "M",
+      "unitPrice": 49.99,
+      "quantity": 1,
+      "lineTotal": 49.99,
+      "stock": 5,
+      "imageUrl": "/plants/snake.svg"
+    }
+  ],
+  "itemCount": 1,
+  "subtotal": 49.99,
+  "shipping": 6.95,
+  "total": 56.94
+}

@@ -1,0 +1,30 @@
+{
+  "lines": [
+    {
+      "id": "ln-fixture-a",
+      "plantId": "pl-a",
+      "name": "Snake Plant",
+      "size": "S",
+      "unitPrice": 10,
+      "quantity": 1,
+      "lineTotal": 10,
+      "stock": 8,
+      "imageUrl": "/plants/snake.svg"
+    },
+    {
+      "id": "ln-fixture-b",
+      "plantId": "pl-b",
+      "name": "ZZ Plant",
+      "size": "M",
+      "unitPrice": 12,
+      "quantity": 2,
+      "lineTotal": 24,
+      "stock": 10,
+      "imageUrl": "/plants/zz.svg"
+    }
+  ],
+  "itemCount": 3,
+  "subtotal": 34,
+  "shipping": 6.95,
+  "total": 40.95
+}
