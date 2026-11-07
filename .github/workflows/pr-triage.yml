@@ -1,0 +1,100 @@
+name: PR triage
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-triage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Merge base branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          git merge --no-edit "origin/${{ github.event.pull_request.base.ref }}"
+
+      - name: Install Cursor CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Write test plan
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          agent -p --force --trust --output-format text "Use the change-triage subagent on this pull request. The diff is git diff origin/${{ github.event.pull_request.base.ref }}...HEAD. Write the plan to docs/test-plans/${{ github.event.pull_request.head.ref }}.md and print only the plan." > plan.md
+
+      - name: Commit plan and push
+        run: |
+          git add "docs/test-plans/${{ github.event.pull_request.head.ref }}.md"
+          git commit -m "Add test plan for ${{ github.event.pull_request.head.ref }}"
+          git push
+
+      - name: Comment plan on pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file plan.md
+
+  tests:
+    if: github.event.action == 'labeled' && github.event.label.name == 'plan-approved'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Merge base branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          git merge --no-edit "origin/${{ github.event.pull_request.base.ref }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Cursor CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Write and run tests
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          agent -p --force --trust --output-format text "The plan is approved. Route each row to its specialist, write the tests, run them, and write the results file. Never change app code." > results.md
+
+      - name: Commit tests and docs
+        run: |
+          git add tests web/cypress docs FINDINGS.md
+          git commit -m "Add tests from approved plan"
+          git push
+
+      - name: Comment results on pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file results.md

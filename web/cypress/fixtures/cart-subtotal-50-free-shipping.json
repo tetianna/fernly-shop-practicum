@@ -1,0 +1,19 @@
+{
+  "lines": [
+    {
+      "id": "ln-fixture-50",
+      "plantId": "pl-big",
+      "name": "Statement Plant",
+      "size": "L",
+      "unitPrice": 50,
+      "quantity": 1,
+      "lineTotal": 50,
+      "stock": 5,
+      "imageUrl": "/plants/monstera.svg"
+    }
+  ],
+  "itemCount": 1,
+  "subtotal": 50,
+  "shipping": 0,
+  "total": 50
+}

@@ -1,0 +1,19 @@
+{
+  "lines": [
+    {
+      "id": "ln-max",
+      "plantId": "pl-limited",
+      "name": "Limited Stock Fern",
+      "size": "S",
+      "unitPrice": 15,
+      "quantity": 5,
+      "lineTotal": 75,
+      "stock": 5,
+      "imageUrl": "/plants/snake.svg"
+    }
+  ],
+  "itemCount": 5,
+  "subtotal": 75,
+  "shipping": 0,
+  "total": 75
+}
