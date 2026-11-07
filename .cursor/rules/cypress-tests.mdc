@@ -1,0 +1,73 @@
+---
+description: How we write Cypress component tests and UI tests with a mocked API in Fernly — Testing Library queries, no fixed waits, fixtures, one tag, honest failures.
+globs: web/cypress/**
+alwaysApply: false
+---
+
+# Fernly Cypress testing
+
+Oracle: `docs/PRODUCT.md` and the OpenAPI at `/openapi.json`. When the app disagrees, keep the test expectation and record the bug in `FINDINGS.md` — never change product rules to match broken UI.
+
+## 1. Queries
+
+Prefer `findByRole`, then `findByLabelText`, then `findByText`. Never CSS module classes or bare tag names.
+
+✅ **Good** — `web/cypress/component/QuantityStepper.cy.tsx`: `cy.findByRole('button', { name: 'Increase quantity' }).click()`.
+
+❌ **Bad** — `cy.get('.button').click()` or `cy.get('button').first().click()` (mirrors `QuantityStepper.module.css` / DOM tags instead of accessible names).
+
+## 2. States
+
+Assert disabled, checked, or values with `.then(($el) => expect($el, 'what it is').to.be.disabled)`. A failing `.should()` chained to `findByRole` reports **Unable to find**, which looks like a broken locator when the state is wrong.
+
+✅ **Good** — `cy.findByRole('button', { name: 'Increase quantity' }).then(($btn) => expect($btn, 'Increase quantity at stock limit').to.be.disabled);`
+
+❌ **Bad** — `cy.findByRole('button', { name: 'Decrease quantity' }).should('be.disabled')` (masks a state failure as a missing element).
+
+## 3. Waiting
+
+Never `cy.wait(<milliseconds>)`. Wait for an intercepted `/api/*` request by alias (`cy.wait('@plants')`) or for what the user sees (Testing Library queries retry automatically).
+
+✅ **Good** — `cy.findByRole('button', { name: 'Increase quantity' }).click()` then `cy.get('@onChange').should('have.been.calledWith', 3)` in `QuantityStepper.cy.tsx` (no timer; spy proves the action).
+
+❌ **Bad** — `cy.wait(500); cy.findByRole('button', { name: 'Increase quantity' }).click()` (fixed sleep; hooks block `cy.wait(` + number in guarded files).
+
+## 4. Data
+
+Component props belong in the test. API answers live under `web/cypress/fixtures/` — one file per scenario (positive, negative, edge).
+
+✅ **Good** — `cy.mount(<QuantityStepper value={3} max={3} onChange={cy.spy()} />)` with props in `QuantityStepper.cy.tsx`.
+
+❌ **Bad** — Pasting a full catalog JSON inline in a UI spec instead of `fixture: 'plants-browse-positive.json'` (hard to reuse and review).
+
+## 5. Mocks
+
+`cy.intercept` only `/api/*` traffic, always with an alias. Never stub the page HTML or non-API routes.
+
+✅ **Good** — `cy.intercept('GET', '/api/plants*', { fixture: 'plants-browse-positive.json' }).as('plants');` then `cy.wait('@plants')` before asserting browse UI (matches `apiFetch` → `/api${path}` in `web/src/api/client.ts`).
+
+❌ **Bad** — `cy.intercept('GET', '/', { body: '<html>…</html>' })` or intercepting `http://localhost:5173/**` to fake the whole app shell.
+
+## 6. Tags
+
+Exactly one level tag per test: `{ tags: '@component' }` or `{ tags: '@ui' }`. A confirmed bug adds `@known-bug` (excluded from CI via `grepTags=-@known-bug` in root `package.json` until fixed).
+
+✅ **Good** — Each `it(...)` in `QuantityStepper.cy.tsx` uses `{ tags: '@component' }` only.
+
+❌ **Bad** — `{ tags: ['@component', '@ui'] }`, tags on `describe()`, or dropping `@known-bug` from a still-broken stock-limit test so `npm run cy:component` goes green without a fix.
+
+## 7. App code
+
+Never edit `web/src` to heal a test. If the test matches `docs/PRODUCT.md` and fails, add or update `FINDINGS.md`.
+
+✅ **Good** — `FINDINGS.md` **BUG-001**: `+` stays enabled at the stock limit; evidence from `npm run cy:component` while `QuantityStepper.tsx` still uses `value > max`.
+
+❌ **Bad** — Changing `disabled={disabled || value > max}` to `value >= max` in `web/src/components/QuantityStepper.tsx` only to satisfy `+ is disabled at the stock limit`.
+
+## 8. Evidence
+
+Label why an assertion is allowed: **executed** (you ran the test), **inspected** (you read PRODUCT or the contract only), or **not yet tested** (suspicion — no assertion).
+
+✅ **Good** — `FINDINGS.md` **Evidence**: `npm run cy:component` — `+ is disabled at the stock limit` fails (executed).
+
+❌ **Bad** — `FINDINGS.md` **Suspicions — not yet tested** entries (e.g. `$12.5` vs two decimals) turned into passing UI assertions without a run or PRODUCT line.
