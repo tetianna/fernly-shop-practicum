@@ -61,18 +61,27 @@ describe('PriceTag', () => {
 
   it('PT-10: exposes a visually hidden context label for screen readers', { tags: '@component' }, () => {
     cy.mount(<PriceTag amount={16.94} label="Subtotal" />);
-    cy.get('.visually-hidden').should('contain.text', 'Subtotal:');
     cy.findByText('$16.94', { exact: true }).should('be.visible');
+    cy.findByText('$16.94', { exact: true })
+      .parent()
+      .invoke('text')
+      .should('match', /Subtotal:\s*\$16\.94/);
+    cy.contains('Subtotal:').then(($label) => {
+      const style = window.getComputedStyle($label[0]);
+      expect(style.position, 'Subtotal label is visually hidden').to.eq('absolute');
+      expect(style.clip, 'Subtotal label is clipped').to.match(/rect\(0/);
+    });
   });
 
   it('PT-11: omits a hidden label when label is not provided', { tags: '@component' }, () => {
     cy.mount(<PriceTag amount={16.94} />);
-    cy.get('.visually-hidden').should('not.exist');
     cy.findByText('$16.94', { exact: true }).should('be.visible');
+    cy.findByText('$16.94', { exact: true }).parent().invoke('text').should('eq', '$16.94');
+    cy.findByText(/Subtotal/).should('not.exist');
   });
 
   it('PT-12: displays API-style two-decimal amounts correctly', { tags: '@component' }, () => {
-    cy.mount(<PriceTag amount={12.5} />); // 12.50 in API-style data
+    cy.mount(<PriceTag amount={12.5} />); // 12.50 — same IEEE value as API two-decimal data
     cy.findByText('$12.50', { exact: true }).should('be.visible');
   });
 });

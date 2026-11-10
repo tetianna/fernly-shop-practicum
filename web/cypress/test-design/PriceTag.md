@@ -4,7 +4,7 @@ Component: `web/src/components/PriceTag.tsx`
 Props: `amount` (required), `size?` (`sm` | `md` | `lg`, default `md`), `label?` (visually hidden prefix).  
 Used on: Browse (`PlantCard`), Plant, Cart (`CartLine`, `OrderSummary`), Checkout, Orders (`docs/APP-MAP.md` §2).
 
-**Status:** awaiting approval
+**Status:** approved
 
 | ID | kind | given | the user does | expected | source | technique |
 | --- | --- | --- | --- | --- | --- | --- |
