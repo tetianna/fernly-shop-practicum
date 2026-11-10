@@ -98,6 +98,66 @@ One entry per issue, ordered by severity (money and privacy first, then broken f
 | **Contradicts** | `docs/PRODUCT.md` and listed Suspicions (save buttons, search field, plant hero `alt`, price contrast). |
 | **Suggested fix** | Add `aria-label` (or visible text) to save toggles; associate `label` with search input or use `aria-label`; set descriptive `alt` on plant images; adjust `PriceTag` / theme colors to meet contrast. |
 
+### BUG-007: Anyone signed in can delete any review
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | High — privacy / authorization |
+| **Where** | API: `DELETE /api/reviews/{reviewId}` (`api/src/features/plant-reviews.ts`) |
+| **Category** | Authorization |
+| **Impact** | Another signed-in customer can remove someone else’s review. |
+| **Expected** | Only the author can delete; anyone else gets **Review not found** (`docs/features/plant-reviews.md`; OpenAPI delete description). |
+| **Actual** | Handler requires a session, then deletes by id with no `userId` check, so a non-author gets **204**. |
+| **Evidence** | `npx playwright test tests/api/plant-reviews.spec.ts --project=api --workers=1` — **PR-01** fails: non-author delete expected **404**, received **204**. |
+| **Contradicts** | `docs/features/plant-reviews.md` — “Only the author can delete a review. Anyone else gets Review not found.”; OpenAPI `DELETE /api/reviews/{reviewId}`. |
+| **Suggested fix** | After finding the review, if `review.userId !== user.id` (or missing author), throw the same 404 as unknown id. |
+
+### BUG-008: Review average truncates instead of rounding half-up (4.6 vs 4.7)
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | Medium — business rules in the API |
+| **Where** | API: `GET /api/plants/{plantId}/reviews` average (`api/src/features/plant-reviews.ts`) |
+| **Category** | Business rules in the API |
+| **Impact** | Shoppers see a lower average than the feature promises (seed Snake Plant shows **4.6** instead of **4.7**). |
+| **Expected** | Average rounded to one decimal, halves up: ratings 5, 4, 5 → **4.7** (`docs/features/plant-reviews.md`). |
+| **Actual** | Uses `Math.floor((sum / n) * 10) / 10`, so 4.666… → **4.6**. |
+| **Evidence** | `npx playwright test tests/api/plant-reviews.spec.ts --project=api --workers=1` — **PR-05b** fails (`average` 4.6 vs 4.7); e2e average assertion also fails. |
+| **Contradicts** | `docs/features/plant-reviews.md` — “The average is rounded to one decimal, halves up… show as **4.7**.” |
+| **Suggested fix** | Round half-up to one decimal (e.g. `Math.round(avg * 10) / 10`), not `Math.floor`. |
+
+### BUG-009: StarRatingInput lacks radio selected-state and keyboard behavior
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | High — accessibility |
+| **Where** | Component: `StarRatingInput` (`web/src/components/StarRatingInput.tsx`) |
+| **Category** | Accessibility |
+| **Impact** | Keyboard and screen-reader users cannot operate the rating like a radio group. |
+| **Expected** | Tab into the group, arrow keys change rating, selected star announced (`aria-checked` / roving tabindex) (`docs/features/plant-reviews.md`). |
+| **Actual** | Stars are click-only `role="radio"` spans with no `aria-checked`, no `tabindex`, no key handlers. Axe also reports `aria-required-attr` on each star. |
+| **Evidence** | `npx cypress run --component` — **SR-03** fails (`aria-checked` undefined). `npx playwright test … -g "Plant Reviews"` — signed-in scan: `aria-required-attr` on `span[aria-label="N star(s)"]`. |
+| **Contradicts** | `docs/features/plant-reviews.md` — keyboard radio-group behavior; `docs/PRODUCT.md` Accessibility. |
+| **Suggested fix** | Implement radiogroup semantics: `aria-checked`, roving `tabindex`, arrow-key handlers (and Space/Enter). |
+
+### BUG-010: Posted review does not appear in the list right away
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | Medium — broken flow |
+| **Where** | Slot: `web/src/slots/plant-page/reviews.tsx` |
+| **Category** | Pages / Caching |
+| **Impact** | After posting, the customer sees the thank-you toast but their review is missing until a full reload. |
+| **Expected** | After posting, the review appears in the list right away (`docs/features/plant-reviews.md`). |
+| **Actual** | Toast **Thanks for your review!** shows, but the reviews query is not refetched. `invalidateQueries({ queryKey: ['review', plant.id] })` does not match `['reviews', plant.id]`. |
+| **Evidence** | Cypress UI **PR10-02** fails waiting for `@reviewsAfterPost`. Playwright e2e post test: toast visible, **Ava Green** never appears in the list. |
+| **Contradicts** | `docs/features/plant-reviews.md` — “After posting, the review appears in the list right away”. |
+| **Suggested fix** | Invalidate `['reviews', plant.id]` (or both keys) on successful POST. |
+
+## Open questions
+
+- **PR-13:** Feature doc requires author-only delete, but the plant-page Reviews slot has no delete control. Should UI expose delete for the author, or is API-only enough?
+
 ## Suspicions — not yet tested
 
 - Browse shows `$27.5` (and plant size deltas `+$6`) instead of two decimals — PRODUCT: “Every price is shown in dollars with two decimals, everywhere.” (Component evidence for `$12.5` / `$22` / `$0`: **BUG-003**.)
