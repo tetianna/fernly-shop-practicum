@@ -1,0 +1,19 @@
+{
+  "id": "pl-fixture-reviews",
+  "name": "Snake Plant",
+  "latinName": "Dracaena trifasciata",
+  "price": 22,
+  "light": "low",
+  "careLevel": 1,
+  "petSafe": false,
+  "stock": 20,
+  "rating": 4.7,
+  "imageUrl": "/plants/snake.svg",
+  "description": "A tough upright plant that thrives on neglect and low light.",
+  "sizes": [
+    { "label": "S", "priceDelta": 0 },
+    { "label": "M", "priceDelta": 6 },
+    { "label": "L", "priceDelta": 12 }
+  ],
+  "similar": []
+}
