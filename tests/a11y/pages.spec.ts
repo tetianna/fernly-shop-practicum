@@ -39,6 +39,32 @@ test.describe('accessibility scans', { tag: '@a11y' }, () => {
     expect(blocking, formatBlockingMessage(blocking)).toEqual([]);
   });
 
+  // PR-12 — Reviews section present (signed out)
+  test('Plant Reviews section signed out (/plants/pl-snake) has no blocking axe findings', async ({ page }, testInfo) => {
+    await page.goto('/plants/pl-snake', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { level: 1, name: 'Snake Plant' })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('heading', { level: 2, name: 'Reviews' })).toBeVisible();
+    const reviewsSection = page.locator('section[aria-labelledby="reviews-title"]');
+    await expect(reviewsSection.getByRole('link', { name: 'Sign in' })).toBeVisible();
+    const { blocking } = await scanPage(page, testInfo, { name: 'plant-reviews-signed-out' });
+    expect(blocking, formatBlockingMessage(blocking)).toEqual([]);
+  });
+
+  // PR-12 — Reviews form visible (signed in)
+  test('Plant Reviews section signed in with form (/plants/pl-zz) has no blocking axe findings', async ({
+    page,
+  }, testInfo) => {
+    await signInAsFirstCustomer(page);
+    await page.goto('/plants/pl-zz', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { level: 1, name: 'ZZ Plant' })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('heading', { level: 2, name: 'Reviews' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Write a review' })).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Your rating' })).toBeVisible();
+    await expect(page.getByLabel('Your review')).toBeVisible();
+    const { blocking } = await scanPage(page, testInfo, { name: 'plant-reviews-signed-in' });
+    expect(blocking, formatBlockingMessage(blocking)).toEqual([]);
+  });
+
   test('Sign in (/login) has no blocking axe findings', async ({ page }, testInfo) => {
     await page.goto('/login', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible({ timeout: 30_000 });
