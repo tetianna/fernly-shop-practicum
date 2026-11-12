@@ -1,6 +1,12 @@
 {
   "version": 1,
   "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "python .cursor/hooks/guard-baselines.py",
+        "failClosed": true
+      }
+    ],
     "afterFileEdit": [
       {
         "command": ".cursor/hooks/guard-test-assertions.sh",

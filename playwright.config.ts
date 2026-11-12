@@ -9,11 +9,20 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const apiUrl = (process.env.API_URL ?? 'http://localhost:8100').replace(/\/$/, '');
 const webUrl = (process.env.WEB_URL ?? 'http://localhost:5173').replace(/\/$/, '');
 
+const visualEnabled = Boolean(process.env.CI || process.env.VISUAL);
+
 export default defineConfig({
   testDir: 'tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  expect: {
+    toHaveScreenshot: {
+      animations: 'disabled',
+      maxDiffPixels: 0,
+      threshold: 0,
+    },
+  },
   reporter: [
     ['list'],
     ['html', { open: 'never' }],
@@ -73,5 +82,19 @@ export default defineConfig({
         baseURL: webUrl,
       },
     },
+    ...(visualEnabled
+      ? [
+          {
+            name: 'visual',
+            testDir: 'tests/visual',
+            dependencies: ['setup'],
+            use: {
+              ...devices['Desktop Chrome'],
+              baseURL: webUrl,
+              viewport: { width: 1280, height: 800 },
+            },
+          },
+        ]
+      : []),
   ],
 });

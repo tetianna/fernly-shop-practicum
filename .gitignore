@@ -7,3 +7,5 @@ playwright-report/
 a11y-report/
 cypress/videos/
 cypress/screenshots/
+tests/visual/**/*-darwin.png
+tests/visual/**/*-win32.png
