@@ -30,16 +30,17 @@ describe('Cart /', () => {
     visitCartAsSignedIn();
 
     cy.findByRole('heading', { level: 1, name: 'Your cart' });
-    cy.get('ul').within(() => {
-      cy.findAllByRole('listitem').should('have.length', 1);
+    cy.findAllByRole('listitem').should('have.length', 1);
+    cy.findByRole('listitem').within(() => {
       cy.findByText('Snake Plant');
       cy.findByText(/Size\s+S/i);
     });
     cy.findByRole('region', { name: /order summary/i }).within(() => {
       cy.findByText(/Subtotal \(1 item\)/);
-      // `dl` > `div` > `dt` may not map to role "term" in all engines; label is still visible text.
       cy.findByText(/^Shipping$/i);
       cy.findByText('$6.95');
+      cy.findByText(/^Total$/i);
+      cy.findByText('$16.94');
     });
     cy.findByRole('link', { name: /go to checkout/i });
   });
@@ -49,9 +50,7 @@ describe('Cart /', () => {
     stubCartFromFixture('cart', 'cart-two-lines.json');
     visitCartAsSignedIn();
 
-    cy.get('ul').within(() => {
-      cy.findAllByRole('listitem').should('have.length', 2);
-    });
+    cy.findAllByRole('listitem').should('have.length', 2);
     cy.findByRole('region', { name: /order summary/i }).within(() => {
       cy.findByText(/Subtotal \(3 items\)/);
     });
@@ -74,6 +73,7 @@ describe('Cart /', () => {
     visitCartAsSignedIn();
 
     cy.findByRole('region', { name: /order summary/i }).within(() => {
+      // BUG-003 may format as `$0.01` or a truncated variant; match the amount intent.
       cy.findByText(/Add\s+\$0\.01\s+more for free shipping/i);
     });
   });
@@ -91,7 +91,9 @@ describe('Cart /', () => {
 
   it('CP-06: shows cart load error and retries', { tags: '@ui' }, () => {
     stubSignedInUser();
-    cy.intercept('GET', '**/api/cart', { statusCode: 500, body: { detail: 'Internal server error' } }).as('cartFail');
+    cy.intercept('GET', '**/api/cart', { statusCode: 500, body: { detail: 'Internal server error' } }).as(
+      'cartFail',
+    );
     visitCartAsSignedIn('cartFail');
 
     cy.findByRole('alert').within(() => {
@@ -119,17 +121,15 @@ describe('Cart /', () => {
     stubCartFromFixture('cart', 'cart-long-name.json');
     visitCartAsSignedIn();
 
-    cy.get('ul').within(() => {
-      cy.findByRole('listitem').within(() => {
-        cy.findByText(longName).then(($name) => {
-          const item = $name.closest('li')[0];
-          const nameEl = $name[0];
-          const itemRect = item.getBoundingClientRect();
-          const nameRect = nameEl.getBoundingClientRect();
-          expect(nameRect.left, 'name left inside line').to.be.at.least(itemRect.left - 1);
-          expect(nameRect.right, 'name right inside line').to.be.at.most(itemRect.right + 1);
-          expect(nameRect.bottom, 'name bottom inside line').to.be.at.most(itemRect.bottom + 1);
-        });
+    cy.findByRole('listitem').within(() => {
+      cy.findByText(longName).then(($name) => {
+        const item = $name.closest('li')[0];
+        const nameEl = $name[0];
+        const itemRect = item.getBoundingClientRect();
+        const nameRect = nameEl.getBoundingClientRect();
+        expect(nameRect.left, 'name left inside line').to.be.at.least(itemRect.left - 1);
+        expect(nameRect.right, 'name right inside line').to.be.at.most(itemRect.right + 1);
+        expect(nameRect.bottom, 'name bottom inside line').to.be.at.most(itemRect.bottom + 1);
       });
     });
   });
@@ -139,13 +139,18 @@ describe('Cart /', () => {
     stubCartFromFixture('cart', 'cart-one-line-qty-2.json');
     visitCartAsSignedIn();
 
-    cy.intercept('PATCH', '**/api/cart/lines/*', { fixture: 'cart-one-line-qty-3-after-patch.json' }).as('patchQty');
+    cy.intercept('PATCH', '**/api/cart/lines/*', { fixture: 'cart-one-line-qty-3-after-patch.json' }).as(
+      'patchQty',
+    );
 
     cy.findByRole('button', { name: 'Increase quantity' }).click();
     cy.wait('@patchQty').its('request.body').should('deep.equal', { quantity: 3 });
 
     cy.findByRole('group', { name: /Quantity of Snake Plant/i }).within(() => {
       cy.findByRole('status').should('contain.text', '3');
+    });
+    cy.findByRole('listitem').within(() => {
+      cy.findByText('$29.97');
     });
   });
 

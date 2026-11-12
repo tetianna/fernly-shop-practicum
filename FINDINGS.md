@@ -94,10 +94,65 @@ One entry per issue, ordered by severity (money and privacy first, then broken f
 | **Impact** | Save toggles have no discernible name; search has no accessible name; plant hero image has no `alt`; price text fails color-contrast against the background. |
 | **Expected** | Every control has an accessible name; meaningful images have alternative text; text meets contrast minimums (`docs/PRODUCT.md` — accessible names; meaningful images). |
 | **Actual** | `@axe-core/playwright` with tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` reports `button-name` (save buttons), `label` (`.SearchBox-module__input`), `image-alt` (plant hero), and `color-contrast` (`.PriceTag-module__price` and related). |
-| **Evidence** | `npx playwright test --project=a11y` — fails on Browse, Plant, Cart, Checkout; passes Setup and Sign in. Attachments on failure: `axe-results` (JSON), `axe-shot:<page>:<rule>:<index>` (PNG). |
+| **Evidence** | `npx playwright test --project=a11y` — fails on Browse, Plant, Cart, Checkout; passes Setup and Sign in. Attachments on failure: `axe-results` (JSON), `axe-shot:<page>:<rule>:<index>` (PNG). Also PC-14 checkout-with-discount scan (`name: checkout`) — PriceTag contrast still blocking (no checkout baseline). |
 | **Contradicts** | `docs/PRODUCT.md` and listed Suspicions (save buttons, search field, plant hero `alt`, price contrast). |
 | **Suggested fix** | Add `aria-label` (or visible text) to save toggles; associate `label` with search input or use `aria-label`; set descriptive `alt` on plant images; adjust `PriceTag` / theme colors to meet contrast. |
 
+### BUG-007: Percent promo discounts shipping as well as plants
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | High — money (customer undercharged / shipping wrongly discounted) |
+| **Where** | API: `store.cart` (`api/src/store.ts`) percent promo branch |
+| **Category** | Business rules in the API |
+| **Impact** | `LEAFY10` takes 10% of **subtotal + shipping**, so shipping is discounted and plant savings are wrong. |
+| **Expected** | Percentage off the **plant subtotal only**, never shipping (`docs/features/promo-codes.md`). |
+| **Actual** | `discount = toCents(((subtotal + shipping) * percent) / 100)` — e.g. $22 + $6.95 → discount `$2.90` instead of `$2.20`. |
+| **Evidence** | `npx playwright test --project=api tests/api/promo.spec.ts` — **PC-01** fails (expected `2.2`, got `2.9`); **PC-03b** under-$50 discount assertion fails similarly. |
+| **Contradicts** | `docs/features/promo-codes.md` — “percentage code takes that percentage off the subtotal of the plants — never off shipping.” |
+| **Suggested fix** | Compute percent discount from `subtotal` only (exclude `shipping`). |
+
+### BUG-008: Expired promo `SPRING5` is accepted
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | Medium — money / promo integrity |
+| **Where** | API: `findPromo` (`api/src/promos.ts`) |
+| **Category** | Business rules in the API |
+| **Impact** | Customers can still apply `SPRING5` after its expiry and receive a discount. |
+| **Expected** | Expired codes refused with a message that the code has expired (`promo_invalid`). |
+| **Actual** | `findPromo` never checks `expiresAt`; `POST /api/cart/promo` with `SPRING5` returns **200**. |
+| **Evidence** | `tests/api/promo.spec.ts` **PC-05** (expected 400, got 200); `tests/e2e/promo.spec.ts` **PC-12a** (no “expired” message on `/cart`). |
+| **Contradicts** | `docs/features/promo-codes.md` — “Expired codes are refused, with a message that says the code has expired.” |
+| **Suggested fix** | Reject when today is after `expiresAt`, with `promo_invalid` and detail mentioning expired. |
+
+### BUG-009: Free shipping threshold uses `subtotal > 50` (not ≥ $50)
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | Medium — money (shipping charged at exactly $50.00) |
+| **Where** | API: `store.cart` (`api/src/store.ts`) |
+| **Category** | Business rules in the API |
+| **Impact** | A cart whose plant subtotal is exactly `$50.00` still pays `$6.95` shipping. |
+| **Expected** | Free shipping when subtotal is **$50.00 or more** (`docs/PRODUCT.md`). |
+| **Actual** | `subtotal > FREE_SHIPPING_FROM` → Bird of Paradise S (`$50`) gets shipping `$6.95`. |
+| **Evidence** | `tests/api/promo.spec.ts` **PC-03a** — expected shipping `0`, got `6.95`. |
+| **Contradicts** | `docs/PRODUCT.md` — “free when the subtotal is $50.00 or more.” |
+| **Suggested fix** | Use `subtotal >= FREE_SHIPPING_FROM`. |
+
+### BUG-010: Promo code field lacks accessible name; refused errors not announced
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | High — accessibility (new cart control) |
+| **Where** | Component: `PromoCodeInput` (`web/src/components/PromoCodeInput.tsx`); cart slot |
+| **Category** | Accessibility |
+| **Impact** | Screen-reader users cannot identify the promo field; refused-code messages are not announced when they appear. |
+| **Expected** | Visible accessible name for the code field; refused message announced via `aria-live` / alert (`docs/features/promo-codes.md`, PRODUCT WCAG). |
+| **Actual** | Bare `<input>` (axe `label`); error is a plain `<p>` without `role="alert"` / `aria-live`. |
+| **Evidence** | `npm run cy:component` — **PI-06** fails; `npx playwright test --project=a11y` — **PC-13** promo field / error scans report critical `label` on the promo input. |
+| **Contradicts** | `docs/features/promo-codes.md` — visible label; “message is announced to screen-reader users as soon as it appears.” |
+| **Suggested fix** | Associate a `<label>` (or `aria-label`) with the input; put the error in an alert / live region. |
 ### BUG-007: Anyone signed in can delete any review
 
 | Field | Detail |
@@ -163,6 +218,5 @@ One entry per issue, ordered by severity (money and privacy first, then broken f
 - Browse shows `$27.5` (and plant size deltas `+$6`) instead of two decimals — PRODUCT: “Every price is shown in dollars with two decimals, everywhere.” (Component evidence for `$12.5` / `$22` / `$0`: **BUG-003**.)
 - Expert plants (Fiddle Leaf Fig, Calathea Orbifolia, String of Pearls) render as “Moderate care” — PRODUCT: “Care level has three steps: 1 **Easy**, 2 **Moderate**, 3 **Expert**.”
 - Following “Likes the same light” from Fiddle Leaf Fig to Rubber Plant left the URL as `/plants/pl-rubber` but the heading still said Fiddle Leaf Fig — PRODUCT: “The plant page always shows the plant in the address bar, including after following a "Likes the same light" link.”
-- Free shipping uses `subtotal > 50`, so a cart of exactly `$50.00` would still pay `$6.95` — PRODUCT: “Shipping costs $6.95, and is free when the subtotal is $50.00 or more.”
 - `GET /api/orders/{orderId}` ignores the caller and returns any order by id — PRODUCT: “An order is private: only the customer who placed it can see it. Anyone else gets "Order not found".”
 - Search field has no accessible name, plant-card save buttons have none, and the plant hero image has no `alt` — PRODUCT: “every button and form field has a name a screen reader can announce” / “every meaningful image has alternative text”. (**Tracked as BUG-006.**)
