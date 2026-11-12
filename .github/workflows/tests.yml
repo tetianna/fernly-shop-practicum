@@ -19,13 +19,16 @@ jobs:
       - run: npm ci
 
       - name: Cypress component tests
-        run: npm run cy:component
+        run: >-
+          npm run cy:component --
+          --reporter junit
+          --reporter-options mochaFile=cypress/results/component-${{ github.sha }}.xml
 
       - name: Start shop and run Cypress UI tests
         run: |
           npm run start:web &
           npx wait-on http://localhost:5173 -t 120000
-          npm run cy:ui
+          npm run cy:ui -- --reporter junit --reporter-options "mochaFile=cypress/results/ui-${{ github.sha }}.xml"
 
       - name: Upload Cypress screenshots
         if: ${{ !cancelled() }}
@@ -33,6 +36,15 @@ jobs:
         with:
           name: cypress-screenshots
           path: web/cypress/screenshots
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Upload Cypress JUnit results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-results
+          path: web/cypress/results
           if-no-files-found: ignore
           retention-days: 30
 
@@ -54,12 +66,14 @@ jobs:
       - name: Playwright tests
         run: npm run test:pw
 
-      - name: Upload Playwright HTML report
+      - name: Upload Playwright HTML report and JSON
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report
+          path: |
+            playwright-report/
+            reports/
           if-no-files-found: ignore
           retention-days: 30
 
@@ -71,3 +85,68 @@ jobs:
           path: a11y-report
           if-no-files-found: ignore
           retention-days: 30
+
+  report:
+    needs: [cypress, playwright]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: qa-report
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Download Cypress results
+        uses: actions/download-artifact@v4
+        with:
+          name: cypress-results
+          path: web/cypress/results
+
+      - name: Download Playwright report
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+          path: .
+
+      - name: Download accessibility report
+        uses: actions/download-artifact@v4
+        with:
+          name: a11y-report
+          path: a11y-report
+
+      - name: Build QA report
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: node scripts/qa-report.mjs build
+
+      - name: Publish QA report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: node scripts/qa-report.mjs publish
+
+      - name: Upload QA report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa-report
+          retention-days: 90

@@ -5,6 +5,10 @@ dist/
 test-results/
 playwright-report/
 a11y-report/
+reports/
+qa-report/
+web/cypress/results/
+cypress/results/
 cypress/videos/
 cypress/screenshots/
 tests/visual/**/*-darwin.png
