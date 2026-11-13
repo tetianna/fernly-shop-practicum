@@ -88,7 +88,10 @@ jobs:
 
   report:
     needs: [cypress, playwright]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    if: >-
+      ${{ !cancelled()
+      && (needs.cypress.result == 'success' || needs.cypress.result == 'failure')
+      && (needs.playwright.result == 'success' || needs.playwright.result == 'failure') }}
     runs-on: ubuntu-latest
     concurrency:
       group: qa-report
@@ -126,15 +129,16 @@ jobs:
 
       - name: Build QA report
         env:
-          BASE_REF: ${{ github.base_ref }}
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
         run: node scripts/qa-report.mjs build
 
       - name: Publish QA report
+        if: ${{ github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
