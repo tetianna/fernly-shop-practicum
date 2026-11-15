@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "pl-long-name",
+      "name": "Supercalifragilisticexpialidocious Monstera Deliciosa Windowsill Companion Extraordinaire",
+      "latinName": "Monstera deliciosa",
+      "price": 34.99,
+      "light": "medium",
+      "careLevel": 1,
+      "petSafe": false,
+      "stock": 3,
+      "rating": 4.5,
+      "imageUrl": "/plants/monstera.svg"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "pageSize": 12
+}

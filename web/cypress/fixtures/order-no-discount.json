@@ -1,0 +1,26 @@
+{
+  "id": "ord-nodisc-1",
+  "status": "placed",
+  "createdAt": "2026-03-15T12:00:00.000Z",
+  "lines": [
+    {
+      "id": "ln-order-nodisc-1",
+      "plantId": "pl-snake",
+      "name": "Snake Plant",
+      "size": "S",
+      "unitPrice": 9.99,
+      "quantity": 1,
+      "lineTotal": 9.99,
+      "imageUrl": "/plants/snake.svg"
+    }
+  ],
+  "subtotal": 9.99,
+  "shipping": 6.95,
+  "total": 16.94,
+  "shippingAddress": {
+    "fullName": "Ava Tester",
+    "address": "1 Fern Lane",
+    "city": "Portland",
+    "postalCode": "97201"
+  }
+}

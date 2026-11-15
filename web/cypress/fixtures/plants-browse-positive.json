@@ -1,0 +1,31 @@
+{
+  "items": [
+    {
+      "id": "pl-fixture-a",
+      "name": "Snake Plant",
+      "latinName": "Dracaena trifasciata",
+      "price": 22,
+      "light": "low",
+      "careLevel": 1,
+      "petSafe": false,
+      "stock": 20,
+      "rating": 4.8,
+      "imageUrl": "/plants/snake.svg"
+    },
+    {
+      "id": "pl-fixture-b",
+      "name": "ZZ Plant",
+      "latinName": "Zamioculcas zamiifolia",
+      "price": 27.5,
+      "light": "low",
+      "careLevel": 1,
+      "petSafe": false,
+      "stock": 9,
+      "rating": 4.6,
+      "imageUrl": "/plants/snake.svg"
+    }
+  ],
+  "total": 2,
+  "page": 1,
+  "pageSize": 12
+}
