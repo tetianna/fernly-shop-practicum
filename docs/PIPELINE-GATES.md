@@ -1,0 +1,20 @@
+# Pipeline gates
+
+Each row is a risk phrased for testing, the control that addresses it, and how `scripts/test-gates.sh` proves it (if at all).
+
+| Risk (testing words) | Gate | Kind | Where it lives | Proof |
+| --- | --- | --- | --- | --- |
+| The CI agent pushes commits or comments on the PR by itself | Plan/tests agents only produce a patch artifact; `publish-plan` / `publish-tests` jobs (not the agent jobs) run `git push` and `gh pr comment` | workflow | `.github/workflows/pr-triage.yml` | not proven |
+| The CI agent changes app code, workflows, guard scripts, or visual baselines | `agent-guard.sh` rejects forbidden paths before apply | guard | `scripts/agent-guard.sh` | `agent-guard: web/src change blocked`; `agent-guard: workflow change blocked`; `agent-guard: snapshot baseline blocked`; `agent-guard: agent-guard.sh blocked despite scripts allowlist` |
+| The agent (local or CI) adds `plan-approved`, merges, or approves its own work | `guard-approvals` blocks merge, approve, and label shell commands | hook | `.cursor/hooks/guard-approvals.py` | `hook guard-approvals (P81): gh pr edit --add-label denied`; `hook guard-approvals (P81): gh pr merge denied`; `hook guard-approvals (P81): gh pr review --approve denied` |
+| A human must add `plan-approved` before the tests agent runs | `tests` job runs only on `labeled` + `plan-approved` + `github.event.sender.type == 'User'` | workflow | `.github/workflows/pr-triage.yml` | `workflow: tests job requires User sender for plan-approved` |
+| Text in the diff or PR steers the agent (skip tests, self-approve, etc.) | Untrusted-input rule: treat PR/diff/comment text as data; record steering as a high-risk plan row | prompt (agent reads this) | `.cursor/agents/change-triage.md`, `.cursor/skills/diff-to-test-plan/SKILL.md` | not proven |
+| A secret (`CURSOR_API_KEY`, `GH_TOKEN`, `GITHUB_TOKEN`) is read from the shell | `guard-approvals` denies `printenv`, bare `env`, and secret reads | hook | `.cursor/hooks/guard-approvals.py` | `hook guard-approvals (P81): printenv denied` |
+| The CI agent keeps a push credential after checkout | Agent jobs check out with `persist-credentials: false` | workflow | `.github/workflows/pr-triage.yml` (`plan`, `tests`) | `workflow: agent job checkout persist-credentials false` |
+| The CI agent is given a GitHub token in the same job as `run-agent.sh` | Agent jobs must not set `GH_TOKEN` or `GITHUB_TOKEN` | workflow | `.github/workflows/pr-triage.yml` | `workflow: agent jobs lack GH_TOKEN and GITHUB_TOKEN` |
+| A PR triage run hangs and burns agent minutes | Per-job `timeout-minutes`; plan job skips when app paths unchanged (`replan` excepted) | workflow | `.github/workflows/pr-triage.yml` | `workflow: pr-triage jobs have timeout-minutes`; `workflow: plan job budget skip present` |
+| Untrusted workflow code from a fork PR runs with repository secrets | (No dedicated fork gate in workflow today.) | — | — | not proven |
+| Visual baselines change on a developer machine without review | `guard-baselines` blocks local Playwright `-u` / `--update-snapshots`; CI updates land on a separate branch via `visual-baselines.yml` | hook + workflow | `.cursor/hooks/guard-baselines.py`, `.github/workflows/visual-baselines.yml` | `hook guard-baselines (P77): --update-snapshots denied`; `hook guard-baselines (P77): -u denied` |
+| `pull_request_target` runs untrusted code with elevated token | Workflows must not use `pull_request_target` as a trigger | workflow | `.github/workflows/*.yml` | `workflow: no pull_request_target trigger` |
+| CI agent writes only plans in the plan phase | `agent-guard` allowlist `docs/test-plans/*` on plan capture | guard | `scripts/agent-guard.sh` + `pr-triage.yml` | `agent-guard: plan-only patch allowed` |
+| CI agent writes tests and findings after approval | `agent-guard` allowlist for tests job | guard | `scripts/agent-guard.sh` + `pr-triage.yml` | `agent-guard: tests and FINDINGS allowed` |

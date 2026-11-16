@@ -1,0 +1,31 @@
+---
+description: How we write Playwright API and E2E tests against Fernly — oracle, contract validation, role-based locators, honest failures.
+globs: tests/**
+alwaysApply: false
+---
+
+# Fernly Playwright API and E2E testing
+
+Oracle: `docs/PRODUCT.md` and the OpenAPI served at **`/openapi.json`** (same origin as `API_URL` in `.env`). Application code lives in `web/src` (shop) and `api/src` (HTTP API). Playwright tests live under `tests/` (`tests/api`, `tests/e2e`, shared helpers in `tests/helpers`).
+
+When the app disagrees with the oracle, **keep the test expectation** and record the bug in `FINDINGS.md` — never change product rules to match broken API or UI.
+
+## Contract checks
+
+Use `getOpenApiValidator` from `tests/helpers/schema.ts` to validate response bodies against component schemas from the running API’s `/openapi.json` (e.g. `Plant`, `PlantSummary`).
+
+## API tests (`tests/api`)
+
+Use `@playwright/test` `request` with **`baseURL`** set to `API_URL`. Prefer small, focused assertions. Tag the suite or tests with `{ tag: '@api' }` where appropriate.
+
+## E2E tests (`tests/e2e`)
+
+Use **`baseURL`** set to `WEB_URL`. Prefer **`getByRole`**, then label text, then visible text. Do not rely on CSS module class names or unlabeled bare tags. Tag with `{ tag: '@e2e' }` where appropriate.
+
+## Data
+
+`tests/reset.setup.ts` runs **`POST /api/admin/reset`** once per run so the catalog matches seed data. Seed customer emails are documented in `.env.example` (practice accounts only).
+
+## When things fail
+
+If a failure reflects incorrect API or UI behavior, add or update an entry in `FINDINGS.md` with evidence (command, assertion, or steps), and point to the contradicting line in `docs/PRODUCT.md` or the OpenAPI contract.

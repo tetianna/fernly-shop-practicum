@@ -1,0 +1,19 @@
+{
+  "lines": [
+    {
+      "id": "ln-long",
+      "plantId": "pl-long",
+      "name": "Supercalifragilisticexpialidocious Monstera Deliciosa Windowsill Companion Extraordinaire",
+      "size": "S",
+      "unitPrice": 10,
+      "quantity": 1,
+      "lineTotal": 10,
+      "stock": 5,
+      "imageUrl": "/plants/monstera.svg"
+    }
+  ],
+  "itemCount": 1,
+  "subtotal": 10,
+  "shipping": 6.95,
+  "total": 16.95
+}
