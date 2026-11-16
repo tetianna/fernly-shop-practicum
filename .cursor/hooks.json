@@ -5,6 +5,10 @@
       {
         "command": "python .cursor/hooks/guard-baselines.py",
         "failClosed": true
+      },
+      {
+        "command": "python .cursor/hooks/guard-approvals.py",
+        "failClosed": true
       }
     ],
     "afterFileEdit": [
