@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "python .cursor/hooks/guard-baselines.py",
+        "failClosed": true
+      },
+      {
+        "command": "python .cursor/hooks/guard-approvals.py",
+        "failClosed": true
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/guard-test-assertions.sh",
+        "matcher": "Write",
+        "failClosed": true
+      },
+      {
+        "command": ".cursor/hooks/guard-constitution.sh",
+        "matcher": "Write",
+        "failClosed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "lines": [
+    {
+      "id": "ln-fixture-1",
+      "plantId": "pl-snake",
+      "name": "Snake Plant",
+      "size": "S",
+      "unitPrice": 9.99,
+      "quantity": 2,
+      "lineTotal": 19.98,
+      "stock": 5,
+      "imageUrl": "/plants/snake.svg"
+    }
+  ],
+  "itemCount": 2,
+  "subtotal": 19.98,
+  "shipping": 6.95,
+  "total": 26.93
+}

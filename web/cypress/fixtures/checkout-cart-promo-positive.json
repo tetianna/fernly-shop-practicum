@@ -1,0 +1,21 @@
+{
+  "lines": [
+    {
+      "id": "ln-checkout-promo-1",
+      "plantId": "pl-snake",
+      "name": "Snake Plant",
+      "size": "M",
+      "unitPrice": 40,
+      "quantity": 1,
+      "lineTotal": 40,
+      "stock": 5,
+      "imageUrl": "/plants/snake.svg"
+    }
+  ],
+  "itemCount": 1,
+  "subtotal": 40,
+  "discount": 4,
+  "promoCode": "LEAFY10",
+  "shipping": 6.95,
+  "total": 42.95
+}
