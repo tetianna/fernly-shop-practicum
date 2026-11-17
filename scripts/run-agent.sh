@@ -29,6 +29,43 @@ trap 'rm -f "$FIFO" "$AGENT_ERR"' EXIT
 
 agent -p --force --trust --output-format stream-json "$(cat "$PROMPT_FILE")" >"$FIFO" 2>"$AGENT_ERR" &
 AGENT_PID=$!
+RESULT_BYTES=0
+RESULT_STABLE_SINCE=""
+
+idle_agent_watchdog() {
+  while kill -0 "$AGENT_PID" 2>/dev/null; do
+    sleep 30
+    if ! kill -0 "$AGENT_PID" 2>/dev/null; then
+      break
+    fi
+    if [ ! -s "$RESULT_FILE" ]; then
+      continue
+    fi
+    now="$(date +%s)"
+    bytes="$(wc -c <"$RESULT_FILE" | tr -d ' ')"
+    if [ "$bytes" != "$RESULT_BYTES" ]; then
+      RESULT_BYTES="$bytes"
+      RESULT_STABLE_SINCE="$now"
+      continue
+    fi
+    if [ -z "$RESULT_STABLE_SINCE" ]; then
+      RESULT_STABLE_SINCE="$now"
+      continue
+    fi
+    idle="$((now - RESULT_STABLE_SINCE))"
+    if [ "$idle" -ge 180 ]; then
+      echo "run-agent: result unchanged for ${idle}s; stopping agent (likely orphan servers)" >&2
+      kill "$AGENT_PID" 2>/dev/null || true
+      sleep 3
+      kill -9 "$AGENT_PID" 2>/dev/null || true
+      break
+    fi
+  done
+}
+
+idle_agent_watchdog &
+WATCHDOG_PID=$!
+trap 'kill "$WATCHDOG_PID" 2>/dev/null || true' EXIT
 
 log_tool_line() {
   local line="$1"
@@ -59,6 +96,9 @@ while IFS= read -r line; do
     fi
   fi
 done <"$FIFO"
+
+kill "$WATCHDOG_PID" 2>/dev/null || true
+wait "$WATCHDOG_PID" 2>/dev/null || true
 
 wait "$AGENT_PID" || {
   if [ -s "$AGENT_ERR" ]; then

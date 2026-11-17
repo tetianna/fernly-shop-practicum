@@ -186,7 +186,7 @@ jobs:
       && github.event.label.name == 'plan-approved'
       && github.event.sender.type == 'User'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 95
     permissions:
       contents: read
     outputs:
@@ -241,14 +241,16 @@ jobs:
           One test per plan row (the case that proves the doc line). Run each new spec file once.
           At most two fixes per failing test, then record the failure as a possible finding.
 
-          Never start long-running foreground processes: npm start, npm run start:web, cypress open, playwright show-report.
+          Never start long-running processes: npm start, npm run start:api, npm run start:web, cypress open, playwright show-report.
+          Prefer Playwright webServer (playwright.config.ts) and npm scripts (cy:ui:ci) instead of manual background servers.
+          If you must start a server in the background, kill it before your final message (pkill -f 'start:api' / 'start:web' or stop the job).
 
           Plan file: docs/test-plans/${PR_HEAD_REF}.md
           Branch: ${PR_HEAD_REF}
           EOF
 
       - name: Run tests agent
-        timeout-minutes: 40
+        timeout-minutes: 90
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         run: |
@@ -256,6 +258,14 @@ jobs:
             "$RUNNER_TEMP/tests-prompt.txt" \
             "$RUNNER_TEMP/results.md" \
             "$RUNNER_TEMP/tests-trail.jsonl"
+
+      - name: Stop stray dev servers
+        if: always()
+        run: |
+          pkill -f 'npm run start:api' || true
+          pkill -f 'npm run start:web' || true
+          pkill -f 'npm run dev -w web' || true
+          pkill -f 'vite' || true
 
       - name: Capture agent patch
         run: |
