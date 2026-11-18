@@ -243,7 +243,9 @@ jobs:
 
           Never start long-running processes: npm start, npm run start:api, npm run start:web, cypress open, playwright show-report.
           Prefer Playwright webServer (playwright.config.ts) and npm scripts (cy:ui:ci) instead of manual background servers.
-          If you must start a server in the background, kill it before your final message (pkill -f 'start:api' / 'start:web' or stop the job).
+          If you must start a server in the background, kill it before your final message using only:
+          `pkill -f 'npm run start:api'`, `pkill -f 'npm run start:web'`, or `pkill -f 'npm run dev -w web'`.
+          Never run `pkill -f vite` or broad patterns (they can kill the CI agent). Wait for every test shell to finish before killing servers.
 
           Plan file: docs/test-plans/${PR_HEAD_REF}.md
           Branch: ${PR_HEAD_REF}
@@ -265,7 +267,6 @@ jobs:
           pkill -f 'npm run start:api' || true
           pkill -f 'npm run start:web' || true
           pkill -f 'npm run dev -w web' || true
-          pkill -f 'vite' || true
 
       - name: Capture agent patch
         run: |
