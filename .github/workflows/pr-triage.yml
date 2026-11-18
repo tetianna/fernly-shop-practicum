@@ -107,7 +107,8 @@ jobs:
       - name: Capture agent patch
         if: steps.budget.outputs.ran == 'true'
         run: |
-          git add -A
+          rm -rf web/cypress/screenshots web/cypress/results
+          git add -A -- docs/test-plans
           git diff --cached --binary > "$RUNNER_TEMP/agent.patch"
           bash scripts/agent-guard.sh "$RUNNER_TEMP/agent.patch" 'docs/test-plans/*'
 
@@ -186,7 +187,7 @@ jobs:
       && github.event.label.name == 'plan-approved'
       && github.event.sender.type == 'User'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 95
     permissions:
       contents: read
     outputs:
@@ -228,6 +229,8 @@ jobs:
           curl https://cursor.com/install -fsS | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - uses: grafana/setup-k6-action@v1
+
       - name: Write tests prompt
         run: |
           cat > "$RUNNER_TEMP/tests-prompt.txt" <<EOF
@@ -239,14 +242,18 @@ jobs:
           One test per plan row (the case that proves the doc line). Run each new spec file once.
           At most two fixes per failing test, then record the failure as a possible finding.
 
-          Never start long-running foreground processes: npm start, npm run start:web, cypress open, playwright show-report.
+          Never start long-running processes: npm start, npm run start:api, npm run start:web, cypress open, playwright show-report.
+          Prefer Playwright webServer (playwright.config.ts) and npm scripts (cy:ui:ci) instead of manual background servers.
+          If you must start a server in the background, kill it before your final message using only:
+          `pkill -f 'npm run start:api'`, `pkill -f 'npm run start:web'`, or `pkill -f 'npm run dev -w web'`.
+          Never run `pkill -f vite` or broad patterns (they can kill the CI agent). Wait for every test shell to finish before killing servers.
 
           Plan file: docs/test-plans/${PR_HEAD_REF}.md
           Branch: ${PR_HEAD_REF}
           EOF
 
       - name: Run tests agent
-        timeout-minutes: 40
+        timeout-minutes: 90
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         run: |
@@ -255,9 +262,17 @@ jobs:
             "$RUNNER_TEMP/results.md" \
             "$RUNNER_TEMP/tests-trail.jsonl"
 
+      - name: Stop stray dev servers
+        if: always()
+        run: |
+          pkill -f 'npm run start:api' || true
+          pkill -f 'npm run start:web' || true
+          pkill -f 'npm run dev -w web' || true
+
       - name: Capture agent patch
         run: |
-          git add -A
+          rm -rf web/cypress/screenshots web/cypress/results
+          git add -A -- tests web/cypress/component web/cypress/ui web/cypress/fixtures docs/test-plans FINDINGS.md
           git diff --cached --binary > "$RUNNER_TEMP/agent.patch"
           bash scripts/agent-guard.sh "$RUNNER_TEMP/agent.patch" \
             'tests/*' 'web/cypress/*' 'docs/test-plans/*' 'FINDINGS.md'

@@ -29,6 +29,40 @@ trap 'rm -f "$FIFO" "$AGENT_ERR"' EXIT
 
 agent -p --force --trust --output-format stream-json "$(cat "$PROMPT_FILE")" >"$FIFO" 2>"$AGENT_ERR" &
 AGENT_PID=$!
+TRAIL_BYTES=0
+TRAIL_STABLE_SINCE=""
+
+idle_agent_watchdog() {
+  while kill -0 "$AGENT_PID" 2>/dev/null; do
+    sleep 30
+    if ! kill -0 "$AGENT_PID" 2>/dev/null; then
+      break
+    fi
+    now="$(date +%s)"
+    bytes="$(wc -c <"$TRAIL_FILE" | tr -d ' ')"
+    if [ "$bytes" != "$TRAIL_BYTES" ]; then
+      TRAIL_BYTES="$bytes"
+      TRAIL_STABLE_SINCE="$now"
+      continue
+    fi
+    if [ -z "$TRAIL_STABLE_SINCE" ]; then
+      TRAIL_STABLE_SINCE="$now"
+      continue
+    fi
+    idle="$((now - TRAIL_STABLE_SINCE))"
+    if [ "$idle" -ge 600 ]; then
+      echo "run-agent: trail unchanged for ${idle}s; stopping agent (likely hung)" >&2
+      kill "$AGENT_PID" 2>/dev/null || true
+      sleep 3
+      kill -9 "$AGENT_PID" 2>/dev/null || true
+      break
+    fi
+  done
+}
+
+idle_agent_watchdog &
+WATCHDOG_PID=$!
+trap 'kill "$WATCHDOG_PID" 2>/dev/null || true' EXIT
 
 log_tool_line() {
   local line="$1"
@@ -49,6 +83,8 @@ log_tool_line() {
 while IFS= read -r line; do
   [ -z "$line" ] && continue
   printf '%s\n' "$line" >>"$TRAIL_FILE"
+  TRAIL_BYTES="$(wc -c <"$TRAIL_FILE" | tr -d ' ')"
+  TRAIL_STABLE_SINCE="$(date +%s)"
   if echo "$line" | jq -e '.type == "tool_call" and .subtype == "started"' >/dev/null 2>&1; then
     log_tool_line "$line"
   fi
@@ -60,12 +96,14 @@ while IFS= read -r line; do
   fi
 done <"$FIFO"
 
-wait "$AGENT_PID" || {
-  if [ -s "$AGENT_ERR" ]; then
-    cat "$AGENT_ERR" >&2
-  fi
-  exit 1
-}
+kill "$WATCHDOG_PID" 2>/dev/null || true
+wait "$WATCHDOG_PID" 2>/dev/null || true
+
+agent_status=0
+wait "$AGENT_PID" || agent_status=$?
+if [ "$agent_status" -ne 0 ] && [ -s "$AGENT_ERR" ]; then
+  cat "$AGENT_ERR" >&2
+fi
 
 if [ ! -s "$RESULT_FILE" ]; then
   jq -sr 'map(select(.type == "assistant")) | last | .message.content[]? | select(.type == "text") | .text // empty' "$TRAIL_FILE" 2>/dev/null >"$RESULT_FILE" || true
@@ -74,3 +112,12 @@ fi
 if [ ! -s "$RESULT_FILE" ]; then
   jq -sr 'map(select(.type == "result")) | last | .result // empty' "$TRAIL_FILE" 2>/dev/null >"$RESULT_FILE" || true
 fi
+
+if [ -s "$RESULT_FILE" ]; then
+  if [ "$agent_status" -ne 0 ]; then
+    echo "run-agent: agent exited $agent_status; using recovered result output" >&2
+  fi
+  exit 0
+fi
+
+exit "$agent_status"
