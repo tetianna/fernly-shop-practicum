@@ -62,3 +62,4 @@ Fernly aims for **WCAG 2.1 level AA** on every page:
 - every meaningful image has alternative text;
 - text has enough contrast against its background (4.5:1 for normal text);
 - everything works with the keyboard alone, and focus is always visible.
+
