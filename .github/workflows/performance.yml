@@ -1,0 +1,79 @@
+name: Performance
+
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'docs/features/**'
+      - 'tests/performance/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Start API
+        run: |
+          npm run start:api > api.log 2>&1 &
+          echo $! > api.pid
+          npx wait-on http://localhost:8100/api/health -t 120000
+
+      - name: Prepare k6 reports
+        run: mkdir -p reports/k6
+
+      - uses: grafana/setup-k6-action@v1
+
+      - name: k6 smoke
+        uses: grafana/run-k6-action@v1
+        with:
+          path: tests/performance/*.js
+          flags: --env SCENARIO=smoke
+          cloud-comment-on-pr: false
+
+      - name: k6 load
+        uses: grafana/run-k6-action@v1
+        with:
+          path: tests/performance/*.js
+          flags: --env SCENARIO=load
+          cloud-comment-on-pr: false
+
+      - name: Append k6 reports to job summary
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo '# k6 performance reports'
+            shopt -s nullglob
+            for f in reports/k6/*.md; do
+              echo "## $(basename "$f")"
+              cat "$f"
+              echo ''
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload k6 reports and API log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-performance-${{ github.run_id }}
+          path: |
+            reports/k6/
+            api.log
+          if-no-files-found: ignore
+          retention-days: 30
