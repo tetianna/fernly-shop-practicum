@@ -10,6 +10,7 @@ const apiUrl = (process.env.API_URL ?? 'http://localhost:8100').replace(/\/$/, '
 const webUrl = (process.env.WEB_URL ?? 'http://localhost:5173').replace(/\/$/, '');
 
 const visualEnabled = Boolean(process.env.CI || process.env.VISUAL);
+const helperEnabled = process.env.npm_lifecycle_event === 'test:helper';
 
 export default defineConfig({
   testDir: 'tests',
@@ -93,6 +94,20 @@ export default defineConfig({
               ...devices['Desktop Chrome'],
               baseURL: webUrl,
               viewport: { width: 1280, height: 800 },
+            },
+          },
+        ]
+      : []),
+    ...(helperEnabled
+      ? [
+          {
+            name: 'helper',
+            testDir: 'tests/helper',
+            testMatch: /\.spec\.ts$/,
+            dependencies: ['setup'],
+            use: {
+              ...devices['Desktop Chrome'],
+              baseURL: webUrl,
             },
           },
         ]
