@@ -54,6 +54,22 @@ export function sortUiThens(thens: string[]): string[] {
   return [...thens].sort((a, b) => sortWeight(a) - sortWeight(b));
 }
 
+async function showCart(page: Page): Promise<void> {
+  const loaded = page.waitForResponse(
+    (res) => {
+      try {
+        return new URL(res.url()).pathname === '/api/cart' && res.request().method() === 'GET';
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 10_000 },
+  );
+  await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+  await loaded.catch(() => undefined);
+  await expect(page.getByText('Loading your cart…')).toHaveCount(0, { timeout: 10_000 });
+}
+
 export function uiCheck(then: string): UiCheck | undefined {
   let match = then.match(/^the catalog shows only pet-safe plants$/);
   if (match) {
@@ -87,8 +103,7 @@ export function uiCheck(then: string): UiCheck | undefined {
     const plantName = match[2];
     const size = match[3];
     return async ({ page }) => {
-      await page.goto('/cart', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByText('Loading your cart…')).toHaveCount(0, { timeout: 30_000 });
+      await showCart(page);
       const main = page.locator('#main');
       const heading = main.getByRole('heading', { name: 'Your cart is empty' });
       if (await heading.isVisible()) {
@@ -131,7 +146,7 @@ export function uiCheck(then: string): UiCheck | undefined {
               const match = text.match(/Cart\s*(\d+)/);
               return match ? Number(match[1]) === count : false;
             },
-            { timeout: 15_000 },
+            { timeout: 2_000 },
           )
           .toBeTruthy();
         return { pass: true, evidence };
@@ -145,8 +160,7 @@ export function uiCheck(then: string): UiCheck | undefined {
   if (match) {
     const plantName = match[1];
     return async ({ page }) => {
-      await page.goto('/cart', { waitUntil: 'domcontentloaded' });
-      await expect(page.getByText('Loading your cart…')).toHaveCount(0, { timeout: 30_000 });
+      await showCart(page);
       const main = page.locator('#main');
       const empty = await main.getByRole('heading', { name: 'Your cart is empty' }).isVisible();
       if (empty) return { pass: true, evidence: 'empty cart' };

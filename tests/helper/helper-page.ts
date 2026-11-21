@@ -30,10 +30,12 @@ export async function freshCustomer(page: Page, request: APIRequestContext): Pro
   }
   const { token } = (await login.json()) as { token: string };
 
+  await page.addInitScript(
+    ([key, value]) => localStorage.setItem(key, value),
+    [TOKEN_KEY, token] as const,
+  );
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(([key, value]) => localStorage.setItem(key, value), [TOKEN_KEY, token] as const);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText(/Hi,\s*/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Hi,\s*/)).toBeVisible({ timeout: 20_000 });
 }
 
 export class HelperPage {

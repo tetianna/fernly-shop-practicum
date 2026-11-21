@@ -9,7 +9,7 @@ export interface ManifestEntry {
   example: string;
   then: string;
   result: 'pass' | 'fail' | 'judge';
-  passRate?: number;
+  passRate?: string;
   evidence?: string;
 }
 
