@@ -209,9 +209,52 @@ One entry per issue, ordered by severity (money and privacy first, then broken f
 | **Contradicts** | `docs/features/plant-reviews.md` — “After posting, the review appears in the list right away”. |
 | **Suggested fix** | Invalidate `['reviews', plant.id]` (or both keys) on successful POST. |
 
+### BUG-011: Popular `unitsSold` counts sale rows, not units
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | High — business rules in the API (wrong “most popular”) |
+| **Where** | API: `popular()` in `api/src/features/popular.ts` |
+| **Category** | Business rules in the API |
+| **Impact** | Workshop tray sales (qty 40) barely move the ranking, so shoppers see the wrong “Popular right now” list. |
+| **Expected** | Popularity is **units sold**, not orders — a workshop buying 40 cuttings counts as 40 (`docs/features/popular-plants.md`). |
+| **Actual** | Loop does `unitsSold += 1` per matching sale row. After reset, `pl-cutting` (200 × qty 40) does not lead `GET /api/popular`. |
+| **Evidence** | `npx playwright test tests/api/popular.spec.ts --project=api --workers=1` — **PP-03** fails (`items[0].id` is not `pl-cutting`; units would be ≥ 8000 if quantities were summed). |
+| **Contradicts** | `docs/features/popular-plants.md` — “units sold, not orders… workshop that buys 40 cuttings… counts as 40”. |
+| **Suggested fix** | Accumulate `sale.quantity` (and still filter by the 30-day window). |
+
+### BUG-012: Out-of-stock plants appear in Popular right now
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | Medium — broken flow (links to unsellable plants) |
+| **Where** | API: `popular()` in `api/src/features/popular.ts` (surfaces on plant page UI) |
+| **Category** | Business rules in the API |
+| **Impact** | Shoppers are sent to plants they cannot buy (e.g. Chinese Money Plant, stock 0). |
+| **Expected** | Out-of-stock plants are left out of popular (`docs/features/popular-plants.md`). |
+| **Actual** | Ranking includes all catalog plants; `pl-pilea` returns with `stock: 0` and high `unitsSold`, and the plant-page Popular list links to it. |
+| **Evidence** | `tests/api/popular.spec.ts` **PP-04** — `pl-pilea` present in `/api/popular?limit=12`. `tests/e2e/popular-plants.spec.ts` **PP-08** — Popular links include `/plants/pl-pilea`. |
+| **Contradicts** | `docs/features/popular-plants.md` — “Plants that are out of stock are left out”. |
+| **Suggested fix** | Exclude plants with `stock === 0` before sorting / slicing. |
+
+### BUG-013: GET /api/popular misses 300 ms p95 under 20 concurrent browsers
+
+| Field | Detail |
+| --- | --- |
+| **Severity** | High — performance (busy-hour browse feels broken) |
+| **Where** | API: `GET /api/popular` (`api/src/features/popular.ts`); catalog also slowed under the same load |
+| **Category** | Caching / Business rules in the API |
+| **Impact** | At ~20 concurrent shoppers, popular (and catalog) responses routinely exceed the shop’s 300 ms p95 budget. |
+| **Expected** | With ~20 shoppers browsing, 95% of `GET /api/popular` and `GET /api/plants` within **300 ms**, with no failed requests (`docs/features/popular-plants.md`). |
+| **Actual** | k6 load (20 VUs, 30s): popular p95 **2992.90 ms**, catalog p95 **2541.71 ms**; duration thresholds failed. |
+| **Evidence** | `SCENARIO=load k6 run tests/performance/popular.js` — exit thresholds crossed; `reports/k6/popular-load.json`. |
+| **Contradicts** | `docs/features/popular-plants.md` — “How fast it must be” (20 shoppers, 300 ms p95, no failures; catalog still fast). |
+| **Suggested fix** | Avoid rescanning the full sales history on every request (precompute / index by plant and window); keep catalog responsive under mixed browse load. |
+
 ## Open questions
 
 - **PR-13:** Feature doc requires author-only delete, but the plant-page Reviews slot has no delete control. Should UI expose delete for the author, or is API-only enough?
+- **Popular loading / error copy:** Feature doc does not define UI when `/popular` is slow or fails; slot returns `null` (intentional silence vs error messaging).
 
 ## Suspicions — not yet tested
 

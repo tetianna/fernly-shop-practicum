@@ -9,6 +9,8 @@ a11y-report/
 reports/
 qa-report/
 web/cypress/results/
+web/cypress/screenshots/
+web/cypress/videos/
 cypress/results/
 cypress/videos/
 cypress/screenshots/
