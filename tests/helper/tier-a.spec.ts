@@ -20,7 +20,8 @@ function groupByToolCall(examples: ReturnType<typeof readFeature>): ToolGroup[] 
     const callThen = example.thens.find((t) => t.startsWith('the helper calls '));
     if (!callThen) continue;
     const call = expectedCall(callThen);
-    if (!call) continue;
+    // Tier A calls a tool directly — skip "no tool" cases (those are Tier B / C).
+    if (!call || call.name === null) continue;
     const key = callKey(call);
     const group = map.get(key) ?? { call, examples: [] };
     group.examples.push(example);
@@ -31,6 +32,7 @@ function groupByToolCall(examples: ReturnType<typeof readFeature>): ToolGroup[] 
 
 function testTitleFor(call: ExpectedCall): string {
   const { name, args } = call;
+  if (name === null) return `no-tool-${JSON.stringify(args)}`;
   if (name === 'search_plants') return `search_plants-${JSON.stringify(args)}`;
   if (name === 'open_plant') return `open_plant-${String(args.plantId)}`;
   if (name === 'add_to_cart') {
@@ -54,6 +56,9 @@ for (const group of groups) {
     await freshCustomer(page, request);
     const helper = new HelperPage(page);
     await helper.open();
+    if (group.call.name === null) {
+      throw new Error('Tier A cannot run a no-tool group');
+    }
     await helper.run(group.call.name as ToolName, group.call.args);
 
     const ctx = { page, helper };

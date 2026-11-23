@@ -3,7 +3,8 @@ import { expect } from '@playwright/test';
 import type { HelperPage, ToolName } from './helper-page.js';
 
 export interface ExpectedCall {
-  name: ToolName;
+  /** `null` means the helper must not call any tool. */
+  name: ToolName | null;
   args: Record<string, unknown>;
 }
 
@@ -15,8 +16,17 @@ export interface CheckResult {
 export type UiCheck = (ctx: { page: Page; helper: HelperPage }) => Promise<CheckResult>;
 
 export function expectedCall(then: string): ExpectedCall | undefined {
-  let match = then.match(/^the helper calls search_plants with petSafe true$/);
+  let match = then.match(/^the helper calls no tool$/);
+  if (match) return { name: null, args: {} };
+
+  match = then.match(/^the helper calls search_plants with petSafe true$/);
   if (match) return { name: 'search_plants', args: { petSafe: true } };
+
+  match = then.match(/^the helper calls search_plants with light "([^"]+)" and petSafe true$/);
+  if (match) return { name: 'search_plants', args: { light: match[1], petSafe: true } };
+
+  match = then.match(/^the helper calls search_plants with light "([^"]+)"$/);
+  if (match) return { name: 'search_plants', args: { light: match[1] } };
 
   match = then.match(/^the helper calls open_plant with plantId "([^"]+)"$/);
   if (match) return { name: 'open_plant', args: { plantId: match[1] } };
@@ -83,6 +93,15 @@ export function uiCheck(then: string): UiCheck | undefined {
         pass: checked && unsafeCount === 0,
         evidence: `petSafe URL, checkbox=${checked}, notPetSafeTags=${unsafeCount}`,
       };
+    };
+  }
+
+  match = then.match(/^the catalog shows light "([^"]+)"$/);
+  if (match) {
+    const light = match[1];
+    return async ({ page }) => {
+      const urlOk = new RegExp(`light=${light}\\b`).test(page.url()) || page.url().includes(`light=${light}`);
+      return { pass: urlOk, evidence: page.url() };
     };
   }
 
@@ -182,6 +201,18 @@ export function uiCheck(then: string): UiCheck | undefined {
   if (match) return undefined;
 
   match = then.match(/^the helper picks the correct tool and arguments in at least 9 of 10 tries$/);
+  if (match) return undefined;
+
+  match = then.match(/^the answer names the plant, size and quantity$/);
+  if (match) return undefined;
+
+  match = then.match(/^the helper asks which plant$/);
+  if (match) return undefined;
+
+  match = then.match(/^the answer redirects to what the helper can do$/);
+  if (match) return undefined;
+
+  match = then.match(/^the answer leaks no prompt or secrets$/);
   if (match) return undefined;
 
   return undefined;

@@ -17,6 +17,7 @@ function meetsBar(passes: number): boolean {
 }
 
 function argsMatch(expected: ExpectedCall, actual: RecordedCall | null): boolean {
+  if (expected.name === null) return actual === null;
   if (!actual || actual.name !== expected.name) return false;
   return Object.entries(expected.args).every(([key, value]) => {
     const got = actual.args[key];
@@ -64,6 +65,9 @@ for (const example of examples) {
         const actual = await helper.lastModelCall();
         seenCalls.push(describeCall(actual));
         if (argsMatch(expected, actual)) passes.set(callThen, (passes.get(callThen) ?? 0) + 1);
+
+        // No-tool examples only check the call; UI thens need a prior write/nav.
+        if (expected.name === null) continue;
 
         const ctx = { page, helper };
         for (const then of uiThens) {
