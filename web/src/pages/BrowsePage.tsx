@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { usePlants, type PlantFilters } from '../api/queries';
-import { EmptyState } from '../components/Feedback';
+import { EmptyState, ErrorBanner } from '../components/Feedback';
 import { LightFilter } from '../components/LightFilter';
 import { PlantCard } from '../components/PlantCard';
 import { SearchBox } from '../components/SearchBox';
@@ -79,7 +79,9 @@ export function BrowsePage() {
                 <div key={index} className={styles.skeleton} />
               ))}
             </div>
-          ) : plants.isError || !data?.items.length ? (
+          ) : plants.isError ? (
+            <ErrorBanner message="The catalog couldn't be loaded." onRetry={() => void plants.refetch()} />
+          ) : !data?.items.length ? (
             <EmptyState title="No plants match your filters" message="Try another search or clear a filter." />
           ) : (
             <>

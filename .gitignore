@@ -3,6 +3,7 @@ dist/
 .env
 .DS_Store
 test-results/
+helper-results/
 playwright-report/
 a11y-report/
 reports/

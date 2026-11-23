@@ -19,5 +19,9 @@ export const PROMOS: Promo[] = [
 export function findPromo(code: string): Promo {
   const promo = PROMOS.find((candidate) => candidate.code === code.trim().toUpperCase());
   if (!promo) throw new ApiError(400, "We don't recognize this code.", 'promo_invalid');
+  const today = new Date().toISOString().slice(0, 10);
+  if (promo.expiresAt < today) {
+    throw new ApiError(400, 'This code has expired.', 'promo_invalid');
+  }
   return promo;
 }

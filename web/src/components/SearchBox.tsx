@@ -24,7 +24,16 @@ export function SearchBox({ value, onSearch }: SearchBoxProps) {
         ⌕
       </span>
       {draft ? null : <span className={styles.hint}>Search plants</span>}
-      <input className={styles.input} type="search" value={draft} onChange={(event) => setDraft(event.target.value)} />
+      <label className="visually-hidden" htmlFor="plant-search">
+        Search plants
+      </label>
+      <input
+        id="plant-search"
+        className={styles.input}
+        type="search"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+      />
       {draft ? (
         <button
           type="button"

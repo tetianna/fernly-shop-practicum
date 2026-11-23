@@ -24,6 +24,7 @@ export function PlantCard({ plant, saved = false, onToggleSave }: PlantCardProps
         <button
           type="button"
           className={`${styles.save} ${saved ? styles.saved : ''}`}
+          aria-label={saved ? `Remove ${plant.name} from saved` : `Save ${plant.name}`}
           aria-pressed={saved}
           onClick={() => onToggleSave(plant.id)}
         >

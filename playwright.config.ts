@@ -10,6 +10,11 @@ const apiUrl = (process.env.API_URL ?? 'http://localhost:8100').replace(/\/$/, '
 const webUrl = (process.env.WEB_URL ?? 'http://localhost:5173').replace(/\/$/, '');
 
 const visualEnabled = Boolean(process.env.CI || process.env.VISUAL);
+const chatbotEnabled =
+  process.env.npm_lifecycle_event === 'test:chatbot' ||
+  process.env.npm_lifecycle_event === 'test:helper' ||
+  process.env.CHATBOT === '1' ||
+  process.env.HELPER === '1';
 
 export default defineConfig({
   testDir: 'tests',
@@ -93,6 +98,22 @@ export default defineConfig({
               ...devices['Desktop Chrome'],
               baseURL: webUrl,
               viewport: { width: 1280, height: 800 },
+            },
+          },
+        ]
+      : []),
+    ...(chatbotEnabled
+      ? [
+          {
+            name: 'chatbot',
+            testDir: 'tests/helper',
+            testMatch: /\.spec\.ts$/,
+            dependencies: ['setup'],
+            // Tier B measures a pass rate — do not retry whole runs in CI.
+            retries: 0,
+            use: {
+              ...devices['Desktop Chrome'],
+              baseURL: webUrl,
             },
           },
         ]

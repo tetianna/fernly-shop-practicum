@@ -109,8 +109,10 @@ class Store {
     }
     switch (query.sort) {
       case 'price-asc':
-      case 'price-desc':
         results.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-desc':
+        results.sort((a, b) => b.price - a.price);
         break;
       case 'name':
         results.sort((a, b) => a.name.localeCompare(b.name));
@@ -138,7 +140,7 @@ class Store {
       .map((candidate) => candidate.id);
     return {
       ...this.summary(plant),
-      rating: plant.rating.toFixed(1),
+      rating: Math.round(plant.rating * 10) / 10,
       description: plant.description,
       sizes: plant.sizes.map((size) => ({ ...size })),
       similar,
@@ -195,10 +197,10 @@ class Store {
       };
     });
     const subtotal = toCents(lines.reduce((sum, line) => sum + line.lineTotal, 0));
-    let shipping = lines.length === 0 || subtotal > FREE_SHIPPING_FROM ? 0 : SHIPPING_FEE;
+    let shipping = lines.length === 0 || subtotal >= FREE_SHIPPING_FROM ? 0 : SHIPPING_FEE;
     const promo = PROMOS.find((candidate) => candidate.code === this.promos.get(userId));
     let discount = 0;
-    if (promo?.kind === 'percent') discount = toCents(((subtotal + shipping) * (promo.percent ?? 0)) / 100);
+    if (promo?.kind === 'percent') discount = toCents((subtotal * (promo.percent ?? 0)) / 100);
     if (promo?.kind === 'free-shipping') shipping = 0;
     return {
       lines,
