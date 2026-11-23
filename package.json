@@ -20,6 +20,9 @@
     "cy:ui:ci": "start-server-and-test \"npm run start:web\" http://localhost:5173 \"cypress run --e2e --project web --expose grepTags=-@known-bug\"",
     "cy:open": "cypress open --project web",
     "test:pw": "playwright test",
+    "test:chatbot": "playwright test --project=chatbot --workers=1",
+    "test:helper": "npm run test:chatbot",
+    "helper:report": "node tests/helper/helper-report.mjs",
     "perf:smoke": "node -e \"require('fs').mkdirSync('reports/k6',{recursive:true})\" && k6 run --env SCENARIO=smoke tests/performance/catalog.js",
     "perf:load": "node -e \"require('fs').mkdirSync('reports/k6',{recursive:true})\" && k6 run --env SCENARIO=load tests/performance/catalog.js"
   },

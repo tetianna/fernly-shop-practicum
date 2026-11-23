@@ -28,7 +28,7 @@ export default function ReviewsSlot({ plant }: { plant: Plant }) {
     mutationFn: (review: { rating: number; text: string }) => apiFetch<ReviewItem>(`/plants/${plant.id}/reviews`, { method: 'POST', body: review }),
     onSuccess: () => {
       setThanks(true);
-      void queryClient.invalidateQueries({ queryKey: ['review', plant.id] });
+      void queryClient.invalidateQueries({ queryKey: ['reviews', plant.id] });
     },
   });
 

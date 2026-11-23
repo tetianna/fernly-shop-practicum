@@ -29,7 +29,7 @@ export function QuantityStepper({ value, onChange, min = 1, max, disabled = fals
         type="button"
         className={styles.button}
         aria-label="Increase quantity"
-        disabled={disabled || value > max}
+        disabled={disabled || value >= max}
         onClick={() => onChange(value + 1)}
       >
         +

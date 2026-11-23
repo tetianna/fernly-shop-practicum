@@ -64,7 +64,9 @@ export function register({ router, registry, requireUser, onReset }: FeatureCont
   router.get('/plants/:plantId/reviews', (req, res) => {
     const plant = store.getPlant(req.params.plantId);
     const list = reviews.filter((review) => review.plantId === plant.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    const average = list.length ? Math.floor((list.reduce((sum, review) => sum + review.rating, 0) / list.length) * 10) / 10 : 0;
+    const average = list.length
+      ? Math.round((list.reduce((sum, review) => sum + review.rating, 0) / list.length) * 10) / 10
+      : 0;
     res.json({ plantId: plant.id, average, count: list.length, reviews: list.map(view) });
   });
 
@@ -89,9 +91,10 @@ export function register({ router, registry, requireUser, onReset }: FeatureCont
   });
 
   router.delete('/reviews/:reviewId', (req, res) => {
-    requireUser(req);
+    const user = requireUser(req);
     const index = reviews.findIndex((review) => review.id === req.params.reviewId);
-    if (index === -1) throw notFound(`Review ${req.params.reviewId}`);
+    const review = index === -1 ? undefined : reviews[index];
+    if (!review || review.userId !== user.id) throw new ApiError(404, 'Review not found.');
     reviews.splice(index, 1);
     res.status(204).end();
   });
