@@ -44,6 +44,7 @@ const ALIASES: [string, string][] = [
 const NUMBER_WORDS: Record<string, number> = {
   one: 1,
   two: 2,
+  tow: 2, // common typo for "two"
   three: 3,
   four: 4,
   five: 5,
@@ -104,10 +105,11 @@ function lightIn(text: string): Light | undefined {
 }
 
 function petSafeIn(text: string) {
-  // "is laser fern safe for my dog?" is a care question, not a catalog filter.
-  if (/\b(is|are)\b.+\b(safe|toxic|poisonous)\b/.test(text)) return false;
+  // Care questions like "is laser fern safe for my dog?" are not catalog filters.
+  // "I want plants that are safe for pets" still means pet-safe browse.
+  if (/^\s*(is|are)\b/.test(text) && /\b(safe|toxic|poisonous)\b/.test(text)) return false;
   return (
-    /\bpet[- ]safe\b|\bpet[- ]friendly\b|\bnon[- ]toxic\b|\bsafe for pets\b|\bsafe for my (cat|dog)s?\b|\bsafe for (cats?|dogs?)\b|\banything safe for (cats?|dogs?)\b/.test(
+    /\bpet[- ]safe\b|\bpet[- ]friendly\b|\bnon[- ]toxic\b|\bplants that are safe for pets\b|\bsafe for pets\b|\bsafe for my (cat|dog)s?\b|\bsafe for (cats?|dogs?)\b|\banything safe for (cats?|dogs?)\b/.test(
       text,
     )
   );
