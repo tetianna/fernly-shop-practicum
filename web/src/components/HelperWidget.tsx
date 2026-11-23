@@ -61,8 +61,12 @@ export function HelperWidget() {
         navigate(`/plants/${String(args.plantId)}`);
       } else if (name === 'add_to_cart') {
         const quantity = Number(args.quantity ?? 1);
-        await apiFetch('/cart/lines', { method: 'POST', body: { plantId: args.plantId, size: 'S', quantity } }).catch(() => undefined);
-        void queryClient.invalidateQueries({ queryKey: ['carts'] });
+        const size = typeof args.size === 'string' ? args.size : 'S';
+        await apiFetch('/cart/lines', {
+          method: 'POST',
+          body: { plantId: args.plantId, size, quantity },
+        }).catch(() => undefined);
+        void queryClient.invalidateQueries({ queryKey: ['cart'] });
       }
     },
     [navigate, queryClient],

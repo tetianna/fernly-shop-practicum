@@ -25,7 +25,6 @@ const ALIASES: [string, string][] = [
   ['calathea', 'pl-calathea'],
   ['spider', 'pl-spider'],
   ['boston fern', 'pl-boston-fern'],
-  ['fern', 'pl-boston-fern'],
   ['rubber', 'pl-rubber'],
   ['string of pearls', 'pl-pearls'],
   ['pearls', 'pl-pearls'],
@@ -43,11 +42,22 @@ const ALIASES: [string, string][] = [
 ];
 
 const NUMBER_WORDS: Record<string, number> = {
-  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  'a pair of': 2, 'a couple of': 2,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  'a pair of': 2,
+  'a couple of': 2,
 };
 
 const CARE_LABELS = ['', 'easy', 'moderate', 'expert'];
+const REDIRECT = 'I can find plants, open a plant page, add plants to your cart and answer care questions.';
 
 const envSeed = () => Number(process.env.HELPER_SEED) || 0;
 let seed = envSeed();
@@ -70,7 +80,14 @@ function quantityIn(text: string) {
     .sort((a, b) => b.length - a.length)
     .find((candidate) => new RegExp(`\\b${candidate}\\b`).test(text));
   if (!word) return 1;
-  return random() < 0.4 ? 1 : NUMBER_WORDS[word];
+  return NUMBER_WORDS[word];
+}
+
+function hasQuantityCue(text: string) {
+  return (
+    /\b(\d{1,2})\b/.test(text) ||
+    Object.keys(NUMBER_WORDS).some((candidate) => new RegExp(`\\b${candidate}\\b`).test(text))
+  );
 }
 
 function sizeIn(text: string): Size {
@@ -87,49 +104,128 @@ function lightIn(text: string): Light | undefined {
 }
 
 function petSafeIn(text: string) {
-  return /\bpet[- ]safe\b|\bnon[- ]toxic\b|\bsafe for pets\b/.test(text);
+  // "is laser fern safe for my dog?" is a care question, not a catalog filter.
+  if (/\b(is|are)\b.+\b(safe|toxic|poisonous)\b/.test(text)) return false;
+  return (
+    /\bpet[- ]safe\b|\bpet[- ]friendly\b|\bnon[- ]toxic\b|\bsafe for pets\b|\bsafe for my (cat|dog)s?\b|\bsafe for (cats?|dogs?)\b|\banything safe for (cats?|dogs?)\b/.test(
+      text,
+    )
+  );
 }
 
-function careAnswer(plant: ReturnType<typeof store.getPlant>, topic: 'pets' | 'light' | 'care', text: string) {
+function careAnswer(plant: ReturnType<typeof store.getPlant>, topic: 'pets' | 'light' | 'care') {
   if (topic === 'pets') {
-    const safe = /\bcats?\b/.test(text) ? plant.careLevel === 1 : plant.petSafe;
-    return safe ? `Yes — ${plant.name} is safe for cats and dogs.` : `No — ${plant.name} isn't safe for pets. Keep it out of reach.`;
+    return plant.petSafe
+      ? `Yes — ${plant.name} is safe for cats and dogs.`
+      : `No — ${plant.name} isn't safe for pets. Keep it out of reach.`;
   }
   if (topic === 'light') return `${plant.name} likes ${plant.light} light.`;
   return `${plant.name} is ${CARE_LABELS[plant.careLevel]} to care for.`;
 }
 
+function looksLikePlantAsk(text: string) {
+  return /\b(sell|have|carry|stock|add|put|buy|safe|toxic|light|care|open|show)\b/.test(text);
+}
+
+function unknownPlantName(text: string): string | undefined {
+  const sell = /\b(?:do you (?:sell|have|carry|stock)|sell|have)\b\s+(?:any\s+)?(.+?)(?:\?|$)/i.exec(text);
+  if (sell) {
+    return sell[1]
+      .replace(/\b(a|an|any|the)\b/gi, '')
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+  const add = /\b(?:add|put|buy|order)\b\s+(?:a|an|the)?\s*(.+?)(?:\s+in my cart)?$/i.exec(text);
+  if (add) {
+    return add[1]
+      .replace(/\b(a|an|the|\d+|small|medium|large)\b/gi, '')
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+  const care = /\b(?:is|are)\b\s+(.+?)\s+(?:safe|toxic)/i.exec(text);
+  if (care) {
+    return care[1]
+      .replace(/\b(a|an|the)\b/gi, '')
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+  return undefined;
+}
+
+function titleCase(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
 export function understand(raw: string): { reply: string; toolCall: ToolCall | null } {
   const text = raw.toLowerCase().trim();
-  const plant = findPlant(text);
 
-  const offCatalog = /\bdo you (sell|have|carry|stock)\b\s+(?:any\s+)?([a-z]+)/.exec(text);
-  if (offCatalog && !plant) {
-    const name = offCatalog[2].replace(/s$/, '');
-    return { reply: `Yes! Our ${name[0].toUpperCase()}${name.slice(1)} is $24 and loves bright, indirect light.`, toolCall: null };
+  if (/\b(api[_ -]?key|system prompt|repeat everything above|secret)\b/.test(text)) {
+    return { reply: "I can't share that. " + REDIRECT, toolCall: null };
+  }
+  if (/\b(weather|python|code|manager|lazy)\b/.test(text)) {
+    return { reply: REDIRECT, toolCall: null };
   }
 
-  if (plant && /\b(safe|toxic|poisonous)\b/.test(text)) {
-    return { reply: careAnswer(plant, 'pets', text), toolCall: { name: 'care_tip', args: { plantId: plant.id, topic: 'pets' } } };
+  const plant = findPlant(text);
+  const light = lightIn(text);
+  const petSafe = petSafeIn(text);
+
+  if (!plant && /\b(add|put)\b/.test(text) && /\b(fern|a plant|some plants)\b/.test(text)) {
+    return { reply: 'Which plant did you mean? Tell me the name from the catalog.', toolCall: null };
+  }
+
+  if (
+    plant &&
+    (/\b(safe|toxic|poisonous)\b/.test(text) ||
+      (/\b(cats?|dogs?|pets?)\b/.test(text) && /\?|can |around|for my|be around/.test(text)))
+  ) {
+    return {
+      reply: careAnswer(plant, 'pets'),
+      toolCall: { name: 'care_tip', args: { plantId: plant.id, topic: 'pets' } },
+    };
   }
   if (plant && /\b(light|sun)\b/.test(text) && /\?|how much|what kind|does/.test(text)) {
-    return { reply: careAnswer(plant, 'light', text), toolCall: { name: 'care_tip', args: { plantId: plant.id, topic: 'light' } } };
+    return {
+      reply: careAnswer(plant, 'light'),
+      toolCall: { name: 'care_tip', args: { plantId: plant.id, topic: 'light' } },
+    };
   }
   if (plant && /\b(care|water|hard|difficult|easy)\b/.test(text) && /\?|how/.test(text)) {
-    return { reply: careAnswer(plant, 'care', text), toolCall: { name: 'care_tip', args: { plantId: plant.id, topic: 'care' } } };
-  }
-
-  if (plant && /\b(add|put|buy|order|grab|get me|i'?d like|i want|i'll take)\b/.test(text)) {
-    const quantity = quantityIn(text);
-    const size = sizeIn(text);
     return {
-      reply: `Added ${quantity} × ${plant.name} (${size}) to your cart.`,
-      toolCall: { name: 'add_to_cart', args: { plantId: plant.id, size, quantity } },
+      reply: careAnswer(plant, 'care'),
+      toolCall: { name: 'care_tip', args: { plantId: plant.id, topic: 'care' } },
     };
   }
 
-  const light = lightIn(text);
-  const petSafe = petSafeIn(text);
+  const wantsAdd =
+    plant &&
+    (/\b(add|put|buy|order|grab|get me|i'?d like|i want|i'll take)\b/.test(text) ||
+      (hasQuantityCue(text) && /\b(plant|please)\b/.test(text)));
+  if (wantsAdd && plant) {
+    const quantity = quantityIn(text);
+    const size = sizeIn(text);
+    const args = { plantId: plant.id, size, quantity };
+    if (quantity > plant.stock) {
+      return {
+        reply: `I couldn't add that — only ${plant.stock} of ${plant.name} left in stock.`,
+        toolCall: { name: 'add_to_cart', args },
+      };
+    }
+    // Occasional miss kept for nondeterministic practice — clear quantity words stay reliable.
+    const flaky = !hasQuantityCue(text) && random() < 0.05;
+    if (flaky) {
+      return { reply: `Opening ${plant.name}.`, toolCall: { name: 'open_plant', args: { plantId: plant.id } } };
+    }
+    return {
+      reply: `Added ${quantity} × ${plant.name} (${size}) to your cart.`,
+      toolCall: { name: 'add_to_cart', args },
+    };
+  }
+
   if (light || petSafe || /\b(find|search|show me|look for|recommend|which|any)\b/.test(text)) {
     if (plant && !light && !petSafe && /\b(show me|open|tell me about)\b/.test(text)) {
       return { reply: `Opening ${plant.name}.`, toolCall: { name: 'open_plant', args: { plantId: plant.id } } };
@@ -141,8 +237,16 @@ export function understand(raw: string): { reply: string; toolCall: ToolCall | n
     return { reply: 'Here is what I found in the shop.', toolCall: { name: 'search_plants', args } };
   }
 
+  if (!plant && looksLikePlantAsk(text)) {
+    const name = unknownPlantName(text) || 'that plant';
+    return {
+      reply: `We don't sell ${titleCase(name)} in this shop.`,
+      toolCall: null,
+    };
+  }
+
   if (plant) return { reply: `Opening ${plant.name}.`, toolCall: { name: 'open_plant', args: { plantId: plant.id } } };
-  return { reply: 'I can find plants, open a plant page, add plants to your cart and answer care questions.', toolCall: null };
+  return { reply: REDIRECT, toolCall: null };
 }
 
 const ChatRequestSchema = z.object({ text: z.string().trim().min(1).max(500) }).openapi('HelperChatRequest');

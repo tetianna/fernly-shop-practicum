@@ -60,7 +60,7 @@ export function PlantPage() {
   return (
     <article className={styles.plant}>
       <div className={styles.plantImage}>
-        <img src={data.imageUrl} className={styles.heroImage} />
+        <img src={data.imageUrl} alt={data.name} className={styles.heroImage} />
       </div>
       <div className={styles.plantInfo}>
         <p className={styles.breadcrumb}>

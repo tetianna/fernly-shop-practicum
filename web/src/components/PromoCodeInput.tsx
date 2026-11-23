@@ -34,12 +34,25 @@ export function PromoCodeInput({ appliedCode, onApply, onRemove, error = null, b
     <form className={styles.box} onSubmit={submit}>
       <p className={styles.title}>Have a promo code?</p>
       <div className={styles.row}>
-        <input className={styles.input} value={code} onChange={(event) => setCode(event.target.value)} autoComplete="off" />
+        <label className="visually-hidden" htmlFor="promo-code">
+          Promo code
+        </label>
+        <input
+          id="promo-code"
+          className={styles.input}
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          autoComplete="off"
+        />
         <button type="submit" className={styles.apply} disabled={busy || !code.trim()}>
           Apply
         </button>
       </div>
-      {error ? <p className={styles.error}>{error}</p> : null}
+      {error ? (
+        <p className={styles.error} role="alert" aria-live="polite">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }
