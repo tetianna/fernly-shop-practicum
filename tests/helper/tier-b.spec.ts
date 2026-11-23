@@ -45,7 +45,8 @@ for (const example of examples) {
   const expected = expectedCall(callThen);
   if (!expected) continue;
 
-  const title = `Tier B: ${phrase}`;
+  // Scenario + phrase keeps titles unique when the same phrasing appears in more than one outline.
+  const title = `Tier B: ${example.scenario} — ${phrase}`;
 
   test(title, { tag: '@helper' }, async ({ page, request }) => {
     test.setTimeout(RUNS * 15_000);

@@ -63,17 +63,22 @@ function salesHistory(now = Date.now()): Sale[] {
   return sales;
 }
 
-function popular(sales: Sale[], limit: number) {
+type PopularItem = ReturnType<typeof store.listPlants>['items'][number] & { unitsSold: number };
+
+/** Rank in-stock plants by units sold in the last 30 days (ties A–Z). */
+function rankPopular(sales: Sale[]): PopularItem[] {
   const since = Date.now() - 30 * DAY;
+  const unitsByPlant = new Map<string, number>();
+  for (const sale of sales) {
+    if (new Date(sale.soldAt).getTime() < since) continue;
+    unitsByPlant.set(sale.plantId, (unitsByPlant.get(sale.plantId) ?? 0) + sale.quantity);
+  }
+
   const plants = store.listPlants({ sort: 'featured', page: 1, pageSize: 100 }).items;
-  const ranked = plants.map((plant) => {
-    let unitsSold = 0;
-    for (const sale of sales) {
-      if (new Date(sale.soldAt).getTime() >= since && sale.plantId === plant.id) unitsSold += 1;
-    }
-    return { ...plant, unitsSold };
-  });
-  return ranked.sort((a, b) => b.unitsSold - a.unitsSold || a.name.localeCompare(b.name)).slice(0, limit);
+  return plants
+    .filter((plant) => plant.stock > 0)
+    .map((plant) => ({ ...plant, unitsSold: unitsByPlant.get(plant.id) ?? 0 }))
+    .sort((a, b) => b.unitsSold - a.unitsSold || a.name.localeCompare(b.name));
 }
 
 const PopularPlantSchema = PlantSummarySchema.extend({ unitsSold: z.number().int() }).openapi('PopularPlant');
@@ -82,13 +87,16 @@ const LimitSchema = z.coerce.number().int().min(1).max(12).default(4);
 
 export function register({ router, registry, onReset }: FeatureContext): void {
   let sales = salesHistory();
+  let ranked = rankPopular(sales);
+
   onReset(() => {
     sales = salesHistory();
+    ranked = rankPopular(sales);
   });
 
   router.get('/popular', (req, res) => {
     const limit = LimitSchema.parse(req.query.limit);
-    res.json({ days: 30, items: popular(sales, limit) });
+    res.json({ days: 30, items: ranked.slice(0, limit) });
   });
 
   registry.registerPath({
