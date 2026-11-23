@@ -101,6 +101,22 @@ export class HelperPage {
     return this.page.locator('#fernly-helper [role="log"]').innerText();
   }
 
+  /** Latest helper bubble only (skips the greeting when a later reply exists). */
+  async lastHelperReply(): Promise<string> {
+    return this.page.evaluate(() => {
+      const items = [...document.querySelectorAll('#fernly-helper [role="log"] li')];
+      const helpers = items.filter((li) => {
+        const prefix = li.querySelector('.visually-hidden')?.textContent ?? '';
+        return prefix.startsWith('Helper:');
+      });
+      const last = helpers[helpers.length - 1];
+      if (!last) return '';
+      const clone = last.cloneNode(true) as HTMLElement;
+      clone.querySelector('.visually-hidden')?.remove();
+      return clone.textContent?.trim() ?? '';
+    });
+  }
+
   cartLink() {
     return this.page.getByRole('link', { name: /Cart/ });
   }

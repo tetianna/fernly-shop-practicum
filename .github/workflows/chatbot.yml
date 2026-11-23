@@ -1,0 +1,72 @@
+name: Chatbot
+
+# Fernly Helper chatbot — Tier A (tools), Tier B (phrasings), Tier C (answer honesty).
+# The Cursor helper-judge agent can still deepen Tier C locally; CI uses automated answer checks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      helper_seed:
+        description: HELPER_SEED for a repeatable stand-in (empty = random)
+        required: false
+        default: '1'
+        type: string
+      helper_runs:
+        description: Tier B runs per phrasing (pass bar still ≥ 9/10)
+        required: false
+        default: '10'
+        type: string
+  pull_request:
+    paths:
+      - 'api/src/features/helper.ts'
+      - 'web/src/components/HelperWidget.tsx'
+      - 'web/src/components/HelperWidget.module.css'
+      - 'docs/features/fernly-helper.md'
+      - 'docs/test-plans/feature/fernly-helper.md'
+      - 'tests/helper/**'
+      - '.github/workflows/chatbot.yml'
+      - 'playwright.config.ts'
+      - 'package.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chatbot-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chatbot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Chatbot Tier A/B/C
+        env:
+          HELPER_SEED: ${{ github.event_name == 'workflow_dispatch' && inputs.helper_seed || '1' }}
+          HELPER_RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.helper_runs || '10' }}
+        run: npm run test:chatbot
+
+      - name: Build chatbot report
+        if: ${{ !cancelled() }}
+        run: npm run helper:report
+
+      - name: Upload chatbot results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatbot-results
+          path: helper-results/
+          if-no-files-found: ignore
+          retention-days: 30
